@@ -1,0 +1,10 @@
+version: '3.4'
+
+services:
+  telegram-chat-archiver:
+    image: your-docker-hub-username/telegram-chat-archiver:latest
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
