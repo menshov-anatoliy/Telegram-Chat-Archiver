@@ -12,11 +12,16 @@ public class TelegramNotificationService : ITelegramNotificationService
 {
     private readonly ILogger<TelegramNotificationService> _logger;
     private readonly ArchiveConfig _config;
+    private readonly ITelegramBotService? _botService;
 
-    public TelegramNotificationService(ILogger<TelegramNotificationService> logger, IOptions<ArchiveConfig> config)
+    public TelegramNotificationService(
+        ILogger<TelegramNotificationService> logger, 
+        IOptions<ArchiveConfig> config,
+        ITelegramBotService? botService = null)
     {
         _logger = logger;
         _config = config.Value;
+        _botService = botService;
     }
 
     /// <summary>
@@ -26,6 +31,14 @@ public class TelegramNotificationService : ITelegramNotificationService
     {
         try
         {
+            // Пытаемся отправить через Bot API
+            if (_botService != null)
+            {
+                await _botService.SendErrorNotificationAsync(error, exception, cancellationToken);
+                return;
+            }
+
+            // Fallback: логируем сообщение
             if (string.IsNullOrEmpty(_config.ErrorNotificationChat))
             {
                 _logger.LogWarning("Канал для уведомлений об ошибках не настроен");
@@ -53,6 +66,14 @@ public class TelegramNotificationService : ITelegramNotificationService
     {
         try
         {
+            // Пытаемся отправить через Bot API
+            if (_botService != null)
+            {
+                await _botService.SendAdminMessageAsync(message, cancellationToken);
+                return;
+            }
+
+            // Fallback: логируем сообщение
             if (string.IsNullOrEmpty(_config.ErrorNotificationChat))
             {
                 _logger.LogWarning("Канал для уведомлений не настроен");
@@ -80,6 +101,13 @@ public class TelegramNotificationService : ITelegramNotificationService
     {
         try
         {
+            // Проверяем доступность Bot API
+            if (_botService != null)
+            {
+                return await _botService.IsBotAvailableAsync();
+            }
+
+            // Fallback: проверяем настройки
             if (string.IsNullOrEmpty(_config.ErrorNotificationChat))
             {
                 _logger.LogDebug("Канал для уведомлений не настроен");
