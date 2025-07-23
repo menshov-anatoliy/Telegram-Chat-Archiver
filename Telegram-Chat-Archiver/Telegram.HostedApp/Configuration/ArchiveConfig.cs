@@ -11,9 +11,14 @@ public class ArchiveConfig
     public string OutputPath { get; set; } = "archives";
 
     /// <summary>
-    /// Формат имени файла архива
+    /// Путь к папке для сохранения медиафайлов
     /// </summary>
-    public string FileNameFormat { get; set; } = "{ChatTitle}_{Date:yyyy-MM-dd}_{Time:HH-mm-ss}.json";
+    public string MediaPath { get; set; } = "media";
+
+    /// <summary>
+    /// Формат имени файла архива (теперь Markdown)
+    /// </summary>
+    public string FileNameFormat { get; set; } = "{Date:yyyy-MM-dd}.md";
 
     /// <summary>
     /// Интервал архивирования в минутах
@@ -24,4 +29,14 @@ public class ArchiveConfig
     /// Максимальное количество сообщений в одном файле
     /// </summary>
     public int MaxMessagesPerFile { get; set; } = 1000;
+
+    /// <summary>
+    /// Имя или ID чата для архивирования
+    /// </summary>
+    public string? TargetChat { get; set; }
+
+    /// <summary>
+    /// ID канала для отправки уведомлений об ошибках
+    /// </summary>
+    public string? ErrorNotificationChat { get; set; }
 }

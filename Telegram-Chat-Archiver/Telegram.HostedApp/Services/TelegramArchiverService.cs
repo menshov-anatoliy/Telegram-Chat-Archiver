@@ -92,25 +92,33 @@ public class TelegramArchiverService : BackgroundService
     {
         _logger.LogInformation("Начинается цикл архивирования");
 
-        var chats = await _archiverService.GetChatsAsync();
-        _logger.LogInformation("Найдено {ChatCount} чатов для архивирования", chats.Count());
-
-        foreach (var chat in chats)
+        // Проверяем настройку целевого чата
+        if (string.IsNullOrWhiteSpace(_archiveConfig.TargetChat))
         {
-            if (cancellationToken.IsCancellationRequested)
-                break;
+            _logger.LogWarning("Целевой чат не настроен. Пропускаем архивирование.");
+            return;
+        }
 
-            try
+        try
+        {
+            // Ищем целевой чат
+            var targetChat = await _archiverService.FindChatAsync(_archiveConfig.TargetChat);
+            if (!targetChat.HasValue)
             {
-                _logger.LogInformation("Архивирование чата: {Chat}", chat);
-                // Пока что используем заглушку для chatId
-                await _archiverService.ArchiveChatAsync(0, cancellationToken);
-                _logger.LogInformation("Архивирование чата {Chat} завершено", chat);
+                _logger.LogWarning("Целевой чат '{TargetChat}' не найден", _archiveConfig.TargetChat);
+                return;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка при архивировании чата {Chat}", chat);
-            }
+
+            var (chatId, chatTitle) = targetChat.Value;
+            _logger.LogInformation("Найден целевой чат: {ChatTitle} (ID: {ChatId})", chatTitle, chatId);
+
+            // Архивируем целевой чат
+            await _archiverService.ArchiveChatAsync(chatId, cancellationToken);
+            _logger.LogInformation("Архивирование чата {ChatTitle} завершено успешно", chatTitle);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при архивировании целевого чата {TargetChat}", _archiveConfig.TargetChat);
         }
 
         _logger.LogInformation("Цикл архивирования завершен");
