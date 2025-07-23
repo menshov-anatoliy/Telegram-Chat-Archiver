@@ -1,0 +1,163 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|c:\\users\\menshov_av\\source\\repos\\telegram-chat-archiver\\telegram-chat-archiver\\telegram.hostedapp\\archiverservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|solutionrelative:telegram.hostedapp\\archiverservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|c:\\users\\menshov_av\\source\\repos\\telegram-chat-archiver\\telegram-chat-archiver\\telegram.hostedapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|solutionrelative:telegram.hostedapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|c:\\users\\menshov_av\\source\\repos\\telegram-chat-archiver\\telegram-chat-archiver\\telegram.hostedapp\\transcriptionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|solutionrelative:telegram.hostedapp\\transcriptionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BE0AE281-99B1-48D5-BBEA-A0B7C9FBD0F4}|Telegram.HostedApp.Tests\\Telegram.HostedApp.Tests.csproj|c:\\users\\menshov_av\\source\\repos\\telegram-chat-archiver\\telegram-chat-archiver\\telegram.hostedapp.tests\\archiverservicetests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BE0AE281-99B1-48D5-BBEA-A0B7C9FBD0F4}|Telegram.HostedApp.Tests\\Telegram.HostedApp.Tests.csproj|solutionrelative:telegram.hostedapp.tests\\archiverservicetests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|c:\\users\\menshov_av\\source\\repos\\telegram-chat-archiver\\telegram-chat-archiver\\telegram.hostedapp\\ifilestorageservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B035B09D-6B1E-4619-8ED6-8582789E04CD}|Telegram.HostedApp\\Telegram.HostedApp.csproj|solutionrelative:telegram.hostedapp\\ifilestorageservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 10,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{99b8fa2f-ab90-4f57-9c32-949f146f1914}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:2:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{6324226f-61b6-4f28-92ee-18d4b5fe1e48}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:254354193:0:{71f361cc-493f-47c0-923f-f2570b6f8618}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:15:0:{2456bd12-ecf7-4988-a4a6-67d49173f565}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:16:0:{2456bd12-ecf7-4988-a4a6-67d49173f565}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:4:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ArchiverServiceTests.cs",
+              "DocumentMoniker": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp.Tests\\ArchiverServiceTests.cs",
+              "RelativeDocumentMoniker": "Telegram.HostedApp.Tests\\ArchiverServiceTests.cs",
+              "ToolTip": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp.Tests\\ArchiverServiceTests.cs",
+              "RelativeToolTip": "Telegram.HostedApp.Tests\\ArchiverServiceTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-23T07:21:23.591Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "IFileStorageService.cs",
+              "DocumentMoniker": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\IFileStorageService.cs",
+              "RelativeDocumentMoniker": "Telegram.HostedApp\\IFileStorageService.cs",
+              "ToolTip": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\IFileStorageService.cs",
+              "RelativeToolTip": "Telegram.HostedApp\\IFileStorageService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-23T07:46:04.368Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ArchiverService.cs",
+              "DocumentMoniker": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\ArchiverService.cs",
+              "RelativeDocumentMoniker": "Telegram.HostedApp\\ArchiverService.cs",
+              "ToolTip": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\ArchiverService.cs",
+              "RelativeToolTip": "Telegram.HostedApp\\ArchiverService.cs",
+              "ViewState": "AgIAACAAAAAAAAAAAAAowDYAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-23T07:46:13.717Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TranscriptionService.cs",
+              "DocumentMoniker": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\TranscriptionService.cs",
+              "RelativeDocumentMoniker": "Telegram.HostedApp\\TranscriptionService.cs",
+              "ToolTip": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\TranscriptionService.cs",
+              "RelativeToolTip": "Telegram.HostedApp\\TranscriptionService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-23T07:46:50.549Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\Program.cs",
+              "RelativeDocumentMoniker": "Telegram.HostedApp\\Program.cs",
+              "ToolTip": "C:\\Users\\Menshov_AV\\source\\repos\\Telegram-Chat-Archiver\\Telegram-Chat-Archiver\\Telegram.HostedApp\\Program.cs",
+              "RelativeToolTip": "Telegram.HostedApp\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAwAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-23T08:52:55.398Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:3:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:5:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:6:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:7:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:8:0:{65ddf8c3-8f89-4077-a6c6-dbb8853aab13}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
