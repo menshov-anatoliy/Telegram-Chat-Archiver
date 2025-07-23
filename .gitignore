@@ -52,4 +52,21 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
-/Telegram-Chat-Archiver/.vs/Telegram-Chat-Archiver/FileContentIndex
+
+# Visual Studio specific
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Telegram specific files
+# Archive files
+archives/
+# Session data
+*.dat
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
