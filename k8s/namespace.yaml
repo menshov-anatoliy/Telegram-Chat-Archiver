@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: telegram-archiver
+  labels:
+    name: telegram-archiver
+    app.kubernetes.io/name: telegram-archiver
+    app.kubernetes.io/component: system

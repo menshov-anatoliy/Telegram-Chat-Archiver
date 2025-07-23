@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: telegram-archiver-archives
+  namespace: telegram-archiver
+  labels:
+    app.kubernetes.io/name: telegram-archiver
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd  # Замените на ваш storage class
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: telegram-archiver-media
+  namespace: telegram-archiver
+  labels:
+    app.kubernetes.io/name: telegram-archiver
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard  # Замените на ваш storage class
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: telegram-archiver-data
+  namespace: telegram-archiver
+  labels:
+    app.kubernetes.io/name: telegram-archiver
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: fast-ssd  # Замените на ваш storage class
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: telegram-archiver-logs
+  namespace: telegram-archiver
+  labels:
+    app.kubernetes.io/name: telegram-archiver
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: standard  # Замените на ваш storage class
