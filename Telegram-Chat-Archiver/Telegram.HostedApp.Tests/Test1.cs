@@ -37,16 +37,22 @@ public sealed class ConfigurationTests
         var config = new ArchiveConfig
         {
             OutputPath = "test_archives",
-            FileNameFormat = "test_format.json",
+            MediaPath = "test_media",
+            FileNameFormat = "test_format.md",
             ArchiveIntervalMinutes = 30,
-            MaxMessagesPerFile = 500
+            MaxMessagesPerFile = 500,
+            TargetChat = "test_chat",
+            ErrorNotificationChat = "error_chat"
         };
 
         // Assert
         Assert.AreEqual("test_archives", config.OutputPath);
-        Assert.AreEqual("test_format.json", config.FileNameFormat);
+        Assert.AreEqual("test_media", config.MediaPath);
+        Assert.AreEqual("test_format.md", config.FileNameFormat);
         Assert.AreEqual(30, config.ArchiveIntervalMinutes);
         Assert.AreEqual(500, config.MaxMessagesPerFile);
+        Assert.AreEqual("test_chat", config.TargetChat);
+        Assert.AreEqual("error_chat", config.ErrorNotificationChat);
     }
 
     [TestMethod]
@@ -66,6 +72,9 @@ public sealed class ConfigurationTests
         var services = new ServiceCollection();
         services.Configure<TelegramConfig>(configuration.GetSection("TelegramConfig"));
         services.Configure<ArchiveConfig>(configuration.GetSection("ArchiveConfig"));
+        services.AddSingleton<IMarkdownService, MarkdownService>();
+        services.AddSingleton<IMediaDownloadService, MediaDownloadService>();
+        services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
         services.AddSingleton<ITelegramArchiverService, TelegramArchiverServiceImpl>();
         services.AddLogging();
 
@@ -76,10 +85,16 @@ public sealed class ConfigurationTests
         var telegramConfig = serviceProvider.GetService<IOptions<TelegramConfig>>();
         var archiveConfig = serviceProvider.GetService<IOptions<ArchiveConfig>>();
         var archiverService = serviceProvider.GetService<ITelegramArchiverService>();
+        var markdownService = serviceProvider.GetService<IMarkdownService>();
+        var mediaService = serviceProvider.GetService<IMediaDownloadService>();
+        var notificationService = serviceProvider.GetService<ITelegramNotificationService>();
 
         Assert.IsNotNull(telegramConfig);
         Assert.IsNotNull(archiveConfig);
         Assert.IsNotNull(archiverService);
+        Assert.IsNotNull(markdownService);
+        Assert.IsNotNull(mediaService);
+        Assert.IsNotNull(notificationService);
         Assert.AreEqual(12345, telegramConfig.Value.ApiId);
         Assert.AreEqual("test_hash", telegramConfig.Value.ApiHash);
     }

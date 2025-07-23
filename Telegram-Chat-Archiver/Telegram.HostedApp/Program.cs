@@ -57,6 +57,9 @@ internal class Program
                 services.Configure<ArchiveConfig>(configuration.GetSection("ArchiveConfig"));
 
                 // Регистрация сервисов
+                services.AddSingleton<IMarkdownService, MarkdownService>();
+                services.AddSingleton<IMediaDownloadService, MediaDownloadService>();
+                services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
                 services.AddSingleton<ITelegramArchiverService, TelegramArchiverServiceImpl>();
                 services.AddHostedService<TelegramArchiverService>();
             });

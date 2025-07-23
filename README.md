@@ -8,12 +8,15 @@ Telegram Chat Archiver - это консольное приложение .NET 8
 
 ## Возможности
 
-- Фоновое архивирование Telegram сообщений
-- Настраиваемые интервалы архивирования
+- Фоновое архивирование Telegram сообщений в формате Markdown
+- Поддержка различных типов сообщений (текст, изображения, документы, голос, видео, стикеры)
+- Автоматическая загрузка и сохранение медиафайлов
 - Структурированное логирование с помощью Serilog
+- Отправка уведомлений об ошибках в Telegram чат
+- Настраиваемые интервалы архивирования
 - Поддержка Docker контейнеров
 - Конфигурация через appsettings.json и переменные окружения
-- Graceful shutdown и обработка ошибок
+- Graceful shutdown и улучшенная обработка ошибок
 
 ## Конфигурация
 
@@ -29,9 +32,12 @@ Telegram Chat Archiver - это консольное приложение .NET 8
   },
   "ArchiveConfig": {
     "OutputPath": "archives",                                        // Папка для архивов
-    "FileNameFormat": "{ChatTitle}_{Date:yyyy-MM-dd}_{Time:HH-mm-ss}.json", // Формат имени файла
+    "MediaPath": "media",                                           // Папка для медиафайлов
+    "FileNameFormat": "{Date:yyyy-MM-dd}.md",                      // Формат имени файла (Markdown)
     "ArchiveIntervalMinutes": 60,  // Интервал архивирования в минутах
-    "MaxMessagesPerFile": 1000     // Максимальное количество сообщений в файле
+    "MaxMessagesPerFile": 1000,    // Максимальное количество сообщений в файле
+    "TargetChat": "",              // Имя или ID чата для архивирования
+    "ErrorNotificationChat": ""    // ID канала для уведомлений об ошибках
   }
 }
 ```
@@ -42,7 +48,8 @@ Telegram Chat Archiver - это консольное приложение .NET 8
 - `TelegramConfig__ApiHash` - API Hash
 - `TelegramConfig__PhoneNumber` - Номер телефона
 - `ArchiveConfig__OutputPath` - Путь к папке архивов
-- `ArchiveConfig__ArchiveIntervalMinutes` - Интервал архивирования
+- `ArchiveConfig__TargetChat` - Имя или ID чата для архивирования
+- `ArchiveConfig__ErrorNotificationChat` - ID канала для уведомлений об ошибках
 
 ## Запуск
 
@@ -82,15 +89,23 @@ Telegram-Chat-Archiver/
 │   ├── Configuration/          # Классы конфигурации
 │   │   ├── TelegramConfig.cs
 │   │   └── ArchiveConfig.cs
-│   ├── Services/              # Сервисы
+│   ├── Models/                 # Модели данных
+│   │   └── ChatMessage.cs
+│   ├── Services/               # Сервисы
 │   │   ├── ITelegramArchiverService.cs
 │   │   ├── TelegramArchiverServiceImpl.cs
-│   │   └── TelegramArchiverService.cs
-│   ├── appsettings.json       # Конфигурация приложения
-│   ├── Program.cs             # Точка входа
-│   └── Dockerfile             # Docker файл
-├── Telegram.HostedApp.Tests/  # Юнит тесты
-└── README.md                  # Данный файл
+│   │   ├── TelegramArchiverService.cs
+│   │   ├── IMarkdownService.cs
+│   │   ├── MarkdownService.cs
+│   │   ├── IMediaDownloadService.cs
+│   │   ├── MediaDownloadService.cs
+│   │   ├── ITelegramNotificationService.cs
+│   │   └── TelegramNotificationService.cs
+│   ├── appsettings.json        # Конфигурация приложения
+│   ├── Program.cs              # Точка входа
+│   └── Dockerfile              # Docker файл
+├── Telegram.HostedApp.Tests/   # Юнит тесты
+└── README.md                   # Данный файл
 ```
 
 ## Логирование
@@ -136,4 +151,4 @@ dotnet build
 3. Зафиксируйте изменения (`git commit -m 'Add some AmazingFeature'`)
 4. Отправьте в ветку (`git push origin feature/AmazingFeature`)
 5. Откройте Pull Request
-Фоновый сервис для автоматического архивирования сообщений из указанного чата Telegram в локальные текстовые файлы формата Markdown
+Фоновый сервис для автоматического архивирования сообщений из указанного чата Telegram в локальные файлы формата Markdown с поддержкой медиафайлов
