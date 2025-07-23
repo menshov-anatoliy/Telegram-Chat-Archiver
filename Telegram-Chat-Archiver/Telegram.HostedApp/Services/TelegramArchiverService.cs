@@ -6,25 +6,40 @@ using Telegram.HostedApp.Configuration;
 namespace Telegram.HostedApp.Services;
 
 /// <summary>
-/// Фоновый сервис для архивирования Telegram сообщений
+/// Фоновый сервис для архивирования Telegram сообщений с расширенной функциональностью
 /// </summary>
 public class TelegramArchiverService : BackgroundService
 {
     private readonly ILogger<TelegramArchiverService> _logger;
     private readonly TelegramConfig _telegramConfig;
     private readonly ArchiveConfig _archiveConfig;
+    private readonly BotConfig _botConfig;
     private readonly ITelegramArchiverService _archiverService;
+    private readonly ITelegramBotService _botService;
+    private readonly ISyncStateService _syncStateService;
+    private readonly IStatisticsService _statisticsService;
+    private readonly ITelegramNotificationService _notificationService;
 
     public TelegramArchiverService(
         ILogger<TelegramArchiverService> logger,
         IOptions<TelegramConfig> telegramConfig,
         IOptions<ArchiveConfig> archiveConfig,
-        ITelegramArchiverService archiverService)
+        IOptions<BotConfig> botConfig,
+        ITelegramArchiverService archiverService,
+        ITelegramBotService botService,
+        ISyncStateService syncStateService,
+        IStatisticsService statisticsService,
+        ITelegramNotificationService notificationService)
     {
         _logger = logger;
         _telegramConfig = telegramConfig.Value;
         _archiveConfig = archiveConfig.Value;
+        _botConfig = botConfig.Value;
         _archiverService = archiverService;
+        _botService = botService;
+        _syncStateService = syncStateService;
+        _statisticsService = statisticsService;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -33,14 +48,18 @@ public class TelegramArchiverService : BackgroundService
     /// <param name="stoppingToken">Токен отмены</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Telegram Archiver Service запущен");
+        _logger.LogInformation("Telegram Archiver Service с расширенной функциональностью запущен");
 
         try
         {
+            // Инициализация сервисов
+            await InitializeServicesAsync(stoppingToken);
+
             // Проверка конфигурации
             if (!ValidateConfiguration())
             {
                 _logger.LogError("Конфигурация недействительна. Сервис будет остановлен.");
+                await _notificationService.SendErrorNotificationAsync("Ошибка конфигурации при запуске сервиса");
                 return;
             }
 
@@ -49,38 +68,101 @@ public class TelegramArchiverService : BackgroundService
             if (!isConnected)
             {
                 _logger.LogError("Не удалось подключиться к Telegram API. Проверьте конфигурацию.");
+                await _notificationService.SendErrorNotificationAsync("Не удалось подключиться к Telegram API");
                 return;
             }
 
             _logger.LogInformation("Подключение к Telegram API успешно установлено");
+            await _notificationService.SendInfoNotificationAsync("Telegram Chat Archiver успешно запущен и подключен к API");
+
+            // Загрузка статистики
+            await _statisticsService.LoadStatisticsAsync();
 
             // Основной цикл архивирования
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
-                {
-                    await PerformArchivingAsync(stoppingToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Ошибка во время архивирования");
-                }
-
-                // Ожидание до следующего цикла
-                var delay = TimeSpan.FromMinutes(_archiveConfig.ArchiveIntervalMinutes);
-                _logger.LogInformation("Следующий цикл архивирования через {Delay} минут", _archiveConfig.ArchiveIntervalMinutes);
-                
-                await Task.Delay(delay, stoppingToken);
-            }
+            await RunMainArchivingLoop(stoppingToken);
         }
         catch (OperationCanceledException)
         {
             _logger.LogInformation("Telegram Archiver Service остановлен");
+            await _notificationService.SendInfoNotificationAsync("Telegram Chat Archiver остановлен");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Критическая ошибка в Telegram Archiver Service");
-            throw;
+            await _notificationService.SendErrorNotificationAsync("Критическая ошибка в сервисе", ex);
+        }
+        finally
+        {
+            // Graceful shutdown
+            await GracefulShutdownAsync();
+        }
+    }
+
+    /// <summary>
+    /// Инициализация сервисов
+    /// </summary>
+    private async Task InitializeServicesAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Инициализация сервисов...");
+
+        // Запуск Bot API для команд управления
+        if (_botConfig.EnableManagementCommands)
+        {
+            try
+            {
+                await _botService.StartListeningAsync(cancellationToken);
+                _logger.LogInformation("Bot API запущен для команд управления");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Не удалось запустить Bot API для управления");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Основной цикл архивирования
+    /// </summary>
+    private async Task RunMainArchivingLoop(CancellationToken stoppingToken)
+    {
+        var lastReportTime = DateTime.UtcNow;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                var archiveStartTime = DateTime.UtcNow;
+                
+                // Выполнение архивирования
+                await PerformArchivingAsync(stoppingToken);
+
+                // Сохранение статистики
+                await _statisticsService.SaveStatisticsAsync();
+
+                // Периодические отчеты
+                if (DateTime.UtcNow - lastReportTime > TimeSpan.FromMinutes(_archiveConfig.ReportIntervalMinutes))
+                {
+                    await SendPeriodicReportAsync();
+                    lastReportTime = DateTime.UtcNow;
+                }
+
+                var archiveEndTime = DateTime.UtcNow;
+                var archiveDuration = archiveEndTime - archiveStartTime;
+                
+                _logger.LogInformation("Цикл архивирования завершен за {Duration:mm\\:ss}", archiveDuration);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка во время архивирования");
+                await _statisticsService.RecordErrorAsync("Ошибка в цикле архивирования", ex);
+                await _notificationService.SendErrorNotificationAsync("Ошибка в цикле архивирования", ex);
+            }
+
+            // Ожидание до следующего цикла
+            var delay = TimeSpan.FromMinutes(_archiveConfig.ArchiveIntervalMinutes);
+            _logger.LogInformation("Следующий цикл архивирования через {Delay} минут", _archiveConfig.ArchiveIntervalMinutes);
+            
+            await Task.Delay(delay, stoppingToken);
         }
     }
 
@@ -112,16 +194,56 @@ public class TelegramArchiverService : BackgroundService
             var (chatId, chatTitle) = targetChat.Value;
             _logger.LogInformation("Найден целевой чат: {ChatTitle} (ID: {ChatId})", chatTitle, chatId);
 
+            // Установка статуса синхронизации
+            await _syncStateService.SetSyncStatusAsync(chatId, Models.SyncStatus.InProgress);
+
             // Архивируем целевой чат
             await _archiverService.ArchiveChatAsync(chatId, cancellationToken);
+            
+            // Запись статистики о создании архива
+            await _statisticsService.RecordArchiveCreatedAsync();
+            
             _logger.LogInformation("Архивирование чата {ChatTitle} завершено успешно", chatTitle);
+
+            // Установка статуса завершения
+            await _syncStateService.SetSyncStatusAsync(chatId, Models.SyncStatus.Idle);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при архивировании целевого чата {TargetChat}", _archiveConfig.TargetChat);
+            
+            // Установка статуса ошибки
+            if (!string.IsNullOrEmpty(_archiveConfig.TargetChat))
+            {
+                var chatInfo = await _archiverService.FindChatAsync(_archiveConfig.TargetChat);
+                if (chatInfo.HasValue)
+                {
+                    await _syncStateService.SetSyncStatusAsync(chatInfo.Value.ChatId, Models.SyncStatus.Error, ex.Message);
+                }
+            }
+            
+            throw;
         }
 
         _logger.LogInformation("Цикл архивирования завершен");
+    }
+
+    /// <summary>
+    /// Отправка периодического отчета
+    /// </summary>
+    private async Task SendPeriodicReportAsync()
+    {
+        try
+        {
+            var statistics = await _statisticsService.GetStatisticsAsync();
+            await _botService.SendStatisticsReportAsync(statistics);
+            
+            _logger.LogInformation("Периодический отчет отправлен");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при отправке периодического отчета");
+        }
     }
 
     /// <summary>
@@ -155,6 +277,29 @@ public class TelegramArchiverService : BackgroundService
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Graceful shutdown
+    /// </summary>
+    private async Task GracefulShutdownAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Выполнение graceful shutdown...");
+
+            // Остановка Bot API
+            await _botService.StopListeningAsync();
+
+            // Сохранение финальной статистики
+            await _statisticsService.SaveStatisticsAsync();
+
+            _logger.LogInformation("Graceful shutdown завершен");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при graceful shutdown");
+        }
     }
 
     /// <summary>
