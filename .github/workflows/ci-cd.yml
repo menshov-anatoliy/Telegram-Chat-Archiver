@@ -1,0 +1,145 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Тестирование
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Проверка кода
+      uses: actions/checkout@v4
+      
+    - name: Настройка .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Восстановление зависимостей
+      run: dotnet restore Telegram-Chat-Archiver/Telegram-Chat-Archiver.sln
+      
+    - name: Сборка проекта
+      run: dotnet build Telegram-Chat-Archiver/Telegram-Chat-Archiver.sln --no-restore --configuration Release
+      
+    - name: Запуск тестов
+      run: dotnet test Telegram-Chat-Archiver/Telegram-Chat-Archiver.sln --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+      
+    - name: Генерация отчета покрытия
+      uses: codecov/codecov-action@v3
+      with:
+        files: '**/coverage.cobertura.xml'
+        fail_ci_if_error: false
+
+  security-scan:
+    name: Анализ безопасности
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Проверка кода
+      uses: actions/checkout@v4
+      
+    - name: Сканирование безопасности .NET
+      uses: security-code-scan/security-code-scan-action@v3
+      with:
+        project-path: Telegram-Chat-Archiver/Telegram.HostedApp/Telegram.HostedApp.csproj
+
+  build-docker:
+    name: Сборка Docker образа
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      
+    steps:
+    - name: Проверка кода
+      uses: actions/checkout@v4
+      
+    - name: Настройка Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Авторизация в Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Извлечение метаданных
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Сборка и публикация образа
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: ./Telegram-Chat-Archiver
+        file: ./Telegram-Chat-Archiver/Telegram.HostedApp/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Развертывание в тестовую среду
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Развертывание в staging
+      run: |
+        echo "Развертывание образа ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image-digest }} в тестовую среду"
+        # Здесь будет реальная логика развертывания
+
+  deploy-production:
+    name: Развертывание в продакшен
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.event_name == 'release'
+    environment: production
+    
+    steps:
+    - name: Развертывание в production
+      run: |
+        echo "Развертывание образа ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image-digest }} в продакшен"
+        # Здесь будет реальная логика развертывания
+
+  release:
+    name: Создание релиза
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Проверка кода
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Создание автоматического релиза
+      uses: semantic-release/semantic-release@v21
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

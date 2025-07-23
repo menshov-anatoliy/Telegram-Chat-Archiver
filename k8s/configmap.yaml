@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegram-archiver-config
+  namespace: telegram-archiver
+  labels:
+    app.kubernetes.io/name: telegram-archiver
+    app.kubernetes.io/component: config
+data:
+  appsettings.Production.json: |
+    {
+      "Serilog": {
+        "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File" ],
+        "MinimumLevel": {
+          "Default": "Information",
+          "Override": {
+            "Microsoft": "Warning",
+            "System": "Warning"
+          }
+        },
+        "WriteTo": [
+          {
+            "Name": "Console",
+            "Args": {
+              "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+            }
+          },
+          {
+            "Name": "File",
+            "Args": {
+              "path": "/app/logs/telegram-archiver-.log",
+              "rollingInterval": "Day",
+              "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}",
+              "retainedFileCountLimit": 30,
+              "fileSizeLimitBytes": 104857600
+            }
+          }
+        ]
+      },
+      "ArchiveConfig": {
+        "OutputPath": "/app/archives",
+        "MediaPath": "/app/media",
+        "IndexPath": "/app/indexes",
+        "DatabasePath": "/app/data/metadata.db",
+        "SyncStatePath": "/app/data/sync_state.json",
+        "FileNameFormat": "{Date:yyyy-MM-dd}.md",
+        "ArchiveIntervalMinutes": 60,
+        "ReportIntervalMinutes": 1440,
+        "MaxMessagesPerFile": 1000,
+        "BatchSize": 100,
+        "EnableIncrementalSync": true,
+        "EnableLazyMediaDownload": false,
+        "UserCacheSize": 10000,
+        "EnableIndexGeneration": true,
+        "EnableAutoTagging": true,
+        "MaxRetryAttempts": 3,
+        "BaseRetryDelayMs": 1000,
+        "MaxLogFileSizeMB": 100,
+        "LogRetentionDays": 30
+      }
+    }
