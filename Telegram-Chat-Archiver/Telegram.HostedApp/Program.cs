@@ -25,7 +25,7 @@ internal class Program
 
         try
         {
-            Log.Information("Запуск Telegram Chat Archiver");
+            Log.Information("Запуск Telegram Chat Archiver с расширенной функциональностью");
 
             // Создание и запуск хоста
             var host = CreateHostBuilder(args, configuration).Build();
@@ -54,12 +54,21 @@ internal class Program
             {
                 // Регистрация конфигурации
                 services.Configure<TelegramConfig>(configuration.GetSection("TelegramConfig"));
+                services.Configure<BotConfig>(configuration.GetSection("BotConfig"));
                 services.Configure<ArchiveConfig>(configuration.GetSection("ArchiveConfig"));
 
-                // Регистрация сервисов
+                // Регистрация базовых сервисов
                 services.AddSingleton<IMarkdownService, MarkdownService>();
                 services.AddSingleton<IMediaDownloadService, MediaDownloadService>();
                 services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
+                
+                // Регистрация новых сервисов
+                services.AddSingleton<ITelegramBotService, TelegramBotService>();
+                services.AddSingleton<ISyncStateService, SyncStateService>();
+                services.AddSingleton<IStatisticsService, StatisticsService>();
+                services.AddSingleton<IRetryService, RetryService>();
+                
+                // Основной сервис архивирования
                 services.AddSingleton<ITelegramArchiverService, TelegramArchiverServiceImpl>();
                 services.AddHostedService<TelegramArchiverService>();
             });
