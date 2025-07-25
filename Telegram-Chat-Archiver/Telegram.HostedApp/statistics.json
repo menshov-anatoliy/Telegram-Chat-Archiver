@@ -1,13 +1,33 @@
 {
-  "sessionStart": "2025-07-25T07:27:06.7368154Z",
-  "lastUpdate": "2025-07-25T07:27:15.3324975Z",
-  "totalMessagesProcessed": 0,
+  "sessionStart": "2025-07-25T08:20:54.1404722Z",
+  "lastUpdate": "2025-07-25T08:25:57.9681495Z",
+  "totalMessagesProcessed": 80,
   "mediaFilesDownloaded": 0,
   "totalDownloadedSizeBytes": 0,
   "errorCount": 0,
-  "averageProcessingTimeMs": 0,
-  "messageTypeStats": {},
-  "authorStats": {},
-  "lastArchiveTime": "2025-07-25T07:27:15.3324965Z",
-  "archiveFilesCreated": 7
+  "averageProcessingTimeMs": 0.09999999999999985,
+  "messageTypeStats": {
+    "Text": 72,
+    "Voice": 8
+  },
+  "authorStats": {
+    "6477100145": {
+      "authorId": 6477100145,
+      "authorName": "Obsidian_bot",
+      "messageCount": 10,
+      "mediaCount": 0,
+      "firstMessageDate": "2025-07-24T13:10:03Z",
+      "lastMessageDate": "2025-07-24T20:32:35Z"
+    },
+    "455925094": {
+      "authorId": 455925094,
+      "authorName": "Anatoliy Menshov",
+      "messageCount": 70,
+      "mediaCount": 8,
+      "firstMessageDate": "2025-07-24T13:53:43Z",
+      "lastMessageDate": "2025-07-25T08:25:00Z"
+    }
+  },
+  "lastArchiveTime": "2025-07-25T08:25:57.968149Z",
+  "archiveFilesCreated": 11
 }

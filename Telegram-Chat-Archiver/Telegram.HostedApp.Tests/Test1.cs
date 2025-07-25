@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Telegram.HostedApp.Configuration;
 using Telegram.HostedApp.Services;
+using Telegram.HostedApp.Services.Interfaces;
 
 namespace Telegram.HostedApp.Tests;
 

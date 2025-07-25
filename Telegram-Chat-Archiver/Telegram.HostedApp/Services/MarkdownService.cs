@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using System.Text;
 using Telegram.HostedApp.Configuration;
 using Telegram.HostedApp.Models;
+using Telegram.HostedApp.Services.Interfaces;
 
 namespace Telegram.HostedApp.Services;
 

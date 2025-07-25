@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using System.Net;
 using Telegram.Bot.Exceptions;
 using Telegram.HostedApp.Configuration;
+using Telegram.HostedApp.Services.Interfaces;
 
 namespace Telegram.HostedApp.Services;
 

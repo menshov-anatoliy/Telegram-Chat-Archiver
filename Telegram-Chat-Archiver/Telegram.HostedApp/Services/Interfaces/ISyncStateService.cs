@@ -1,6 +1,6 @@
 using Telegram.HostedApp.Models;
 
-namespace Telegram.HostedApp.Services;
+namespace Telegram.HostedApp.Services.Interfaces;
 
 /// <summary>
 /// Интерфейс сервиса для управления состоянием синхронизации

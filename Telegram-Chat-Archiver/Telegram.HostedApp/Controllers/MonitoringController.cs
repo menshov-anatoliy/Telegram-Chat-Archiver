@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.Json;
 using Telegram.HostedApp.Services;
+using Telegram.HostedApp.Services.Interfaces;
 
 namespace Telegram.HostedApp.Controllers;
 

@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Telegram.HostedApp.Configuration;
 using Telegram.HostedApp.Models;
+using Telegram.HostedApp.Services.Interfaces;
 
 namespace Telegram.HostedApp.Services;
 

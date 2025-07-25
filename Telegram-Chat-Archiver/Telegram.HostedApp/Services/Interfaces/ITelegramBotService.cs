@@ -1,4 +1,4 @@
-namespace Telegram.HostedApp.Services;
+namespace Telegram.HostedApp.Services.Interfaces;
 
 /// <summary>
 /// Интерфейс сервиса для работы с Telegram Bot API

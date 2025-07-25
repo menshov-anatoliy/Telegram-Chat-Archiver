@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Telegram.HostedApp.Configuration;
 using Telegram.HostedApp.Models;
+using Telegram.HostedApp.Services.Interfaces;
 using WTelegram;
 using TL;
 

@@ -10,6 +10,7 @@ using Serilog;
 using Telegram.HostedApp.Configuration;
 using Telegram.HostedApp.Services;
 using Telegram.HostedApp.HealthChecks;
+using Telegram.HostedApp.Services.Interfaces;
 
 namespace Telegram.HostedApp;
 
