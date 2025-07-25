@@ -10,26 +10,19 @@ namespace Telegram.HostedApp.Services;
 /// <summary>
 /// Реализация сервиса для управления состоянием синхронизации
 /// </summary>
-public class SyncStateService : ISyncStateService
+public class SyncStateService(
+	ILogger<SyncStateService> logger,
+	IOptions<ArchiveConfig> config)
+	: ISyncStateService
 {
-	private readonly ILogger<SyncStateService> _logger;
-	private readonly ArchiveConfig _config;
+	private readonly ArchiveConfig _config = config.Value;
 	private readonly ConcurrentDictionary<long, SyncState> _syncStates = new();
 	private readonly SemaphoreSlim _fileSemaphore = new(1, 1);
-	private readonly JsonSerializerOptions _jsonOptions;
-
-	public SyncStateService(
-		ILogger<SyncStateService> logger,
-		IOptions<ArchiveConfig> config)
+	private readonly JsonSerializerOptions _jsonOptions = new()
 	{
-		_logger = logger;
-		_config = config.Value;
-		_jsonOptions = new JsonSerializerOptions
-		{
-			WriteIndented = true,
-			PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-		};
-	}
+		WriteIndented = true,
+		PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+	};
 
 	/// <summary>
 	/// Загрузить состояние синхронизации для чата
@@ -60,7 +53,7 @@ public class SyncStateService : ISyncStateService
 		// Сохраняем в файл с блокировкой
 		await SaveToFileAsync(syncState);
 
-		_logger.LogDebug("Состояние синхронизации сохранено для чата {ChatId}", syncState.ChatId);
+		logger.LogDebug("Состояние синхронизации сохранено для чата {ChatId}", syncState.ChatId);
 	}
 
 	/// <summary>
@@ -110,7 +103,7 @@ public class SyncStateService : ISyncStateService
 		// Сохраняем в файл с блокировкой
 		await SaveToFileAsync(syncState);
 
-		_logger.LogInformation("Состояние синхронизации сброшено для чата {ChatId}", chatId);
+		logger.LogInformation("Состояние синхронизации сброшено для чата {ChatId}", chatId);
 	}
 
 	/// <summary>
@@ -153,7 +146,7 @@ public class SyncStateService : ISyncStateService
 
 			if (!File.Exists(filePath))
 			{
-				_logger.LogDebug("Файл состояния синхронизации не найден для чата {ChatId}, создаем новое состояние", chatId);
+				logger.LogDebug("Файл состояния синхронизации не найден для чата {ChatId}, создаем новое состояние", chatId);
 				return CreateNewSyncState(chatId);
 			}
 
@@ -162,18 +155,18 @@ public class SyncStateService : ISyncStateService
 
 			if (syncState == null)
 			{
-				_logger.LogWarning("Не удалось десериализовать состояние синхронизации для чата {ChatId}", chatId);
+				logger.LogWarning("Не удалось десериализовать состояние синхронизации для чата {ChatId}", chatId);
 				return CreateNewSyncState(chatId);
 			}
 
-			_logger.LogDebug("Состояние синхронизации загружено для чата {ChatId}: последнее сообщение {MessageId}",
+			logger.LogDebug("Состояние синхронизации загружено для чата {ChatId}: последнее сообщение {MessageId}",
 				chatId, syncState.LastProcessedMessageId);
 
 			return syncState;
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Ошибка при загрузке состояния синхронизации для чата {ChatId}", chatId);
+			logger.LogError(ex, "Ошибка при загрузке состояния синхронизации для чата {ChatId}", chatId);
 			return CreateNewSyncState(chatId);
 		}
 		finally
@@ -200,7 +193,7 @@ public class SyncStateService : ISyncStateService
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Ошибка при сохранении состояния синхронизации для чата {ChatId}", syncState.ChatId);
+			logger.LogError(ex, "Ошибка при сохранении состояния синхронизации для чата {ChatId}", syncState.ChatId);
 		}
 		finally
 		{

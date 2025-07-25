@@ -225,7 +225,7 @@ public class TelegramArchiverService : ITelegramArchiverService, IAsyncDisposabl
 			if (_client == null)
 			{
 				_logger.LogWarning("Клиент Telegram не инициализирован");
-				return Enumerable.Empty<ChatMessage>();
+				return [];
 			}
 
 			_logger.LogInformation("Получение сообщений из чата {ChatId} через Telegram API", chatId);
@@ -428,7 +428,7 @@ public class TelegramArchiverService : ITelegramArchiverService, IAsyncDisposabl
 		};
 
 		// Получаем имя автора
-		if (message.from_id is PeerUser peerUser && _allUsers?.TryGetValue(peerUser.user_id, out User? user) == true)
+		if (message.from_id is PeerUser peerUser && _allUsers?.TryGetValue(peerUser.user_id, out var user) == true)
 		{
 			chatMessage.AuthorName = GetUserDisplayName(user);
 		}
