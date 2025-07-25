@@ -95,7 +95,7 @@ public class MarkdownArchiver
 		var sb = new StringBuilder();
 		sb.AppendLine($"# {EscapeMarkdown(chatTitle)}");
 		sb.AppendLine();
-		sb.AppendLine($"**Дата:** {date:yyyy-MM-dd}");
+		sb.AppendLine($"**Дата:** {date.ToLocalTime():yyyy-MM-dd}");
 		sb.AppendLine();
 		sb.AppendLine("---");
 		sb.AppendLine();
@@ -111,7 +111,7 @@ public class MarkdownArchiver
 		var sb = new StringBuilder();
 
 		// Временная метка и автор
-		sb.AppendLine($"## {message.Date:HH:mm:ss} - {EscapeMarkdown(message.AuthorName ?? "Неизвестный")}");
+		sb.AppendLine($"## {message.Date.ToLocalTime():HH:mm:ss} - {EscapeMarkdown(message.AuthorName ?? "Неизвестный")}");
 		sb.AppendLine();
 
 		// Содержимое сообщения в зависимости от типа
