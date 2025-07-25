@@ -17,13 +17,7 @@ internal class Program
 {
 	static async Task Main(string[] args)
 	{
-		Console.WriteLine("=== Запуск Telegram Chat Archiver (Режим реального времени) ===");
-		Console.WriteLine("Изменения: переход с периодической перезаписи на инкрементальное добавление сообщений");
-		Console.WriteLine("- Используется MarkdownArchiver для потокобезопасной записи");
-		Console.WriteLine("- TelegramPollingService заменяет TelegramArchiverBackgroundService");
-		Console.WriteLine("- Интервал проверки уменьшен до 30 секунд");
-		Console.WriteLine("- Поддержка переменных окружения для конфигурации");
-		Console.WriteLine();
+		Console.WriteLine("=== Запуск Telegram Chat Archiver ===");
 		
 		// Проверяем аргументы командной строки для health check
 		if (args.Contains("--health-check"))
@@ -35,18 +29,15 @@ internal class Program
 		{
 			Console.WriteLine("Загрузка конфигурации...");
 			
-			// Создание конфигурации с приоритетом переменных окружения
+			// Создание конфигурации
 			var configuration = new ConfigurationBuilder()
 				.SetBasePath(Directory.GetCurrentDirectory())
 				.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development"}.json", optional: true)
-				.AddEnvironmentVariables() // Переменные окружения имеют приоритет
+				.AddEnvironmentVariables()
 				.Build();
 
 			Console.WriteLine("Настройка логирования...");
-			
-			// Логируем значения ключевых переменных окружения для отладки
-			LogEnvironmentVariables();
 			
 			// Настройка Serilog
 			Log.Logger = new LoggerConfiguration()
@@ -228,16 +219,6 @@ internal class Program
 	{
 		try
 		{
-			Console.WriteLine("Регистрация MarkdownArchiver...");
-			services.AddSingleton<MarkdownArchiver>();
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine($"Ошибка регистрации MarkdownArchiver: {ex.Message}");
-		}
-
-		try
-		{
 			Console.WriteLine("Регистрация IMarkdownService...");
 			services.AddSingleton<IMarkdownService, MarkdownService>();
 		}
@@ -318,13 +299,13 @@ internal class Program
 
 		try
 		{
-			Console.WriteLine("Регистрация TelegramPollingService как HostedService...");
-			// Используем новый polling сервис для режима реального времени
-			services.AddHostedService<TelegramPollingService>();
+			Console.WriteLine("Регистрация TelegramArchiverBackgroundService как HostedService...");
+			// Используем новый фоновый сервис вместо старого
+			services.AddHostedService<TelegramArchiverBackgroundService>();
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Ошибка регистрации TelegramPollingService: {ex.Message}");
+			Console.WriteLine($"Ошибка регистрации TelegramArchiverBackgroundService: {ex.Message}");
 		}
 
 		Console.WriteLine("Регистрация сервисов завершена");
@@ -361,49 +342,5 @@ internal class Program
 		});
 
 		await context.Response.WriteAsync(jsonResponse);
-	}
-
-	/// <summary>
-	/// Логирование ключевых переменных окружения для отладки
-	/// </summary>
-	private static void LogEnvironmentVariables()
-	{
-		Console.WriteLine("=== Проверка переменных окружения ===");
-		
-		var envVars = new[]
-		{
-			"TelegramConfig__ApiId",
-			"TelegramConfig__ApiHash", 
-			"TelegramConfig__PhoneNumber",
-			"TelegramConfig__SessionFile",
-			"ArchiveConfig__OutputPath",
-			"ArchiveConfig__MediaPath",
-			"ArchiveConfig__TargetChat",
-			"BotConfig__BotToken",
-			"BotConfig__EnableManagementCommands"
-		};
-
-		foreach (var envVar in envVars)
-		{
-			var value = Environment.GetEnvironmentVariable(envVar);
-			if (!string.IsNullOrEmpty(value))
-			{
-				// Маскируем чувствительные данные
-				if (envVar.Contains("Token") || envVar.Contains("Hash") || envVar.Contains("Phone"))
-				{
-					Console.WriteLine($"{envVar} = ***скрыто***");
-				}
-				else
-				{
-					Console.WriteLine($"{envVar} = {value}");
-				}
-			}
-			else
-			{
-				Console.WriteLine($"{envVar} = <не задано>");
-			}
-		}
-		
-		Console.WriteLine("=====================================");
 	}
 }
