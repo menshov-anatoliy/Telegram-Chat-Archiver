@@ -11,19 +11,23 @@ namespace Telegram.HostedApp.Tests;
 [TestClass]
 public class SyncStateServiceTests
 {
-    private Mock<ILogger<SyncStateService>> _mockLogger;
-    private Mock<IOptions<ArchiveConfig>> _mockOptions;
-    private ArchiveConfig _config;
-    private SyncStateService _service;
+    private Mock<ILogger<SyncStateService>>? _mockLogger;
+    private Mock<IOptions<ArchiveConfig>>? _mockOptions;
+    private ArchiveConfig? _config;
+    private SyncStateService? _service;
+    private string? _testFilePath;
 
     [TestInitialize]
     public void Setup()
     {
+        // Создаем уникальное имя файла для каждого теста
+        _testFilePath = Path.Combine(Path.GetTempPath(), $"test_sync_state_{Guid.NewGuid():N}.json");
+        
         _mockLogger = new Mock<ILogger<SyncStateService>>();
         _mockOptions = new Mock<IOptions<ArchiveConfig>>();
         _config = new ArchiveConfig
         {
-            SyncStatePath = "test_sync_state.json"
+            SyncStatePath = _testFilePath
         };
         _mockOptions.Setup(x => x.Value).Returns(_config);
         _service = new SyncStateService(_mockLogger.Object, _mockOptions.Object);
@@ -36,7 +40,7 @@ public class SyncStateServiceTests
         var chatId = 12345L;
 
         // Act
-        var result = await _service.LoadSyncStateAsync(chatId);
+        var result = await _service!.LoadSyncStateAsync(chatId);
 
         // Assert
         Assert.IsNotNull(result);
@@ -54,7 +58,7 @@ public class SyncStateServiceTests
         var messageId = 100;
 
         // Act
-        await _service.UpdateLastProcessedMessageAsync(chatId, messageId);
+        await _service!.UpdateLastProcessedMessageAsync(chatId, messageId);
         var result = await _service.LoadSyncStateAsync(chatId);
 
         // Assert
@@ -71,7 +75,7 @@ public class SyncStateServiceTests
         var errorMessage = "Test error";
 
         // Act
-        await _service.SetSyncStatusAsync(chatId, status, errorMessage);
+        await _service!.SetSyncStatusAsync(chatId, status, errorMessage);
         var result = await _service.LoadSyncStateAsync(chatId);
 
         // Assert
@@ -86,7 +90,7 @@ public class SyncStateServiceTests
         var chatId = 12345L;
 
         // Предварительно установим некоторое состояние
-        await _service.UpdateLastProcessedMessageAsync(chatId, 100);
+        await _service!.UpdateLastProcessedMessageAsync(chatId, 100);
 
         // Act
         await _service.ResetSyncStateAsync(chatId);
@@ -102,18 +106,49 @@ public class SyncStateServiceTests
     [TestCleanup]
     public void Cleanup()
     {
-        // Очистка тестовых файлов
-        var testFiles = Directory.GetFiles(".", "sync_state_*.json");
-        foreach (var file in testFiles)
+        try
         {
-            try
+            // Освобождаем ресурсы сервиса
+            _service?.Dispose();
+        }
+        catch { }
+
+        try
+        {
+            // Удаляем конкретный тестовый файл
+            if (!string.IsNullOrEmpty(_testFilePath) && File.Exists(_testFilePath))
             {
-                File.Delete(file);
+                File.Delete(_testFilePath);
             }
-            catch
+        }
+        catch
+        {
+            // Игнорируем ошибки удаления
+        }
+
+        try
+        {
+            // Дополнительная очистка всех sync_state файлов в temp папке (на всякий случай)
+            var tempPath = Path.GetTempPath();
+            var syncFiles = Directory.GetFiles(tempPath, "*sync_state*.json");
+            foreach (var file in syncFiles)
             {
-                // Игнорируем ошибки удаления
+                try
+                {
+                    if (DateTime.Now - File.GetCreationTime(file) > TimeSpan.FromHours(1))
+                    {
+                        File.Delete(file);
+                    }
+                }
+                catch
+                {
+                    // Игнорируем ошибки удаления старых файлов
+                }
             }
+        }
+        catch
+        {
+            // Игнорируем ошибки при очистке
         }
     }
 }

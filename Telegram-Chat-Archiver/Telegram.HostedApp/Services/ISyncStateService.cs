@@ -5,7 +5,7 @@ namespace Telegram.HostedApp.Services;
 /// <summary>
 /// Интерфейс сервиса для управления состоянием синхронизации
 /// </summary>
-public interface ISyncStateService
+public interface ISyncStateService : IDisposable
 {
     /// <summary>
     /// Загрузить состояние синхронизации для чата

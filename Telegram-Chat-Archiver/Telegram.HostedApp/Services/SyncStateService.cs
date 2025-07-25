@@ -13,7 +13,7 @@ namespace Telegram.HostedApp.Services;
 public class SyncStateService(
 	ILogger<SyncStateService> logger,
 	IOptions<ArchiveConfig> config)
-	: ISyncStateService
+	: ISyncStateService, IDisposable
 {
 	private readonly ArchiveConfig _config = config.Value;
 	private readonly ConcurrentDictionary<long, SyncState> _syncStates = new();
@@ -23,6 +23,7 @@ public class SyncStateService(
 		WriteIndented = true,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase
 	};
+	private bool _disposed = false;
 
 	/// <summary>
 	/// Загрузить состояние синхронизации для чата
@@ -219,5 +220,27 @@ public class SyncStateService(
 			Status = SyncStatus.Idle,
 			ErrorMessage = null
 		};
+	}
+
+	/// <summary>
+	/// Освобождение ресурсов
+	/// </summary>
+	public void Dispose()
+	{
+		if (_disposed)
+			return;
+
+		try
+		{
+			_fileSemaphore?.Dispose();
+		}
+		catch (Exception ex)
+		{
+			logger?.LogError(ex, "Ошибка при освобождении ресурсов SyncStateService");
+		}
+		finally
+		{
+			_disposed = true;
+		}
 	}
 }

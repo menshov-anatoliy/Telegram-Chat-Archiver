@@ -299,12 +299,13 @@ internal class Program
 
 		try
 		{
-			Console.WriteLine("Регистрация TelegramArchiverService как HostedService...");
+			Console.WriteLine("Регистрация TelegramArchiverBackgroundService как HostedService...");
+			// Используем новый фоновый сервис вместо старого
 			services.AddHostedService<TelegramArchiverBackgroundService>();
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Ошибка регистрации TelegramArchiverService: {ex.Message}");
+			Console.WriteLine($"Ошибка регистрации TelegramArchiverBackgroundService: {ex.Message}");
 		}
 
 		Console.WriteLine("Регистрация сервисов завершена");

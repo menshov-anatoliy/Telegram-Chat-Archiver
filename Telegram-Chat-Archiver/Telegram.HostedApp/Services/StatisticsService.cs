@@ -9,13 +9,14 @@ namespace Telegram.HostedApp.Services;
 /// <summary>
 /// Реализация сервиса для сбора и управления статистикой
 /// </summary>
-public class StatisticsService : IStatisticsService
+public class StatisticsService : IStatisticsService, IDisposable
 {
     private readonly ILogger<StatisticsService> _logger;
     private readonly ArchiveConfig _config;
     private readonly ProcessingStatistics _statistics;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly JsonSerializerOptions _jsonOptions;
+    private bool _disposed = false;
 
     public StatisticsService(
         ILogger<StatisticsService> logger,
@@ -360,5 +361,27 @@ public class StatisticsService : IStatisticsService
     private string GetStatisticsFilePath()
     {
         return Path.Combine(Path.GetDirectoryName(_config.SyncStatePath) ?? ".", "statistics.json");
+    }
+
+    /// <summary>
+    /// Освобождение ресурсов
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        try
+        {
+            _semaphore?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Ошибка при освобождении ресурсов StatisticsService");
+        }
+        finally
+        {
+            _disposed = true;
+        }
     }
 }

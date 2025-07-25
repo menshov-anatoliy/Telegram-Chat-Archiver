@@ -11,10 +11,10 @@ namespace Telegram.HostedApp.Tests;
 [TestClass]
 public class RetryServiceTests
 {
-    private Mock<ILogger<RetryService>> _mockLogger;
-    private Mock<IOptions<ArchiveConfig>> _mockOptions;
-    private ArchiveConfig _config;
-    private RetryService _service;
+    private Mock<ILogger<RetryService>>? _mockLogger;
+    private Mock<IOptions<ArchiveConfig>>? _mockOptions;
+    private ArchiveConfig? _config;
+    private RetryService? _service;
 
     [TestInitialize]
     public void Setup()
@@ -38,7 +38,7 @@ public class RetryServiceTests
         Func<Task<string>> operation = () => Task.FromResult(expectedResult);
 
         // Act
-        var result = await _service.ExecuteWithRetryAsync(operation);
+        var result = await _service!.ExecuteWithRetryAsync(operation);
 
         // Assert
         Assert.AreEqual(expectedResult, result);
@@ -62,7 +62,7 @@ public class RetryServiceTests
         };
 
         // Act
-        var result = await _service.ExecuteWithRetryAsync(operation, 3, 10);
+        var result = await _service!.ExecuteWithRetryAsync(operation, 3, 10);
 
         // Assert
         Assert.AreEqual(expectedResult, result);
@@ -84,7 +84,7 @@ public class RetryServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsExceptionAsync<ArgumentException>(
-            () => _service.ExecuteWithRetryAsync(operation, 3, 10));
+            () => _service!.ExecuteWithRetryAsync(operation, 3, 10));
         
         Assert.AreEqual(expectedException.Message, exception.Message);
         Assert.AreEqual(1, callCount); // Should not retry
@@ -105,7 +105,7 @@ public class RetryServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsExceptionAsync<HttpRequestException>(
-            () => _service.ExecuteWithRetryAsync(operation, 2, 10));
+            () => _service!.ExecuteWithRetryAsync(operation, 2, 10));
         
         Assert.AreEqual(expectedException.Message, exception.Message);
         Assert.AreEqual(2, callCount); // Should retry exactly maxAttempts times
@@ -115,7 +115,7 @@ public class RetryServiceTests
     public void IsTransientException_TransientExceptions_ReturnsTrue()
     {
         // Arrange & Act & Assert
-        Assert.IsTrue(_service.IsTransientException(new HttpRequestException()));
+        Assert.IsTrue(_service!.IsTransientException(new HttpRequestException()));
         Assert.IsTrue(_service.IsTransientException(new TaskCanceledException()));
         Assert.IsTrue(_service.IsTransientException(new TimeoutException()));
         Assert.IsTrue(_service.IsTransientException(new IOException()));
@@ -131,7 +131,7 @@ public class RetryServiceTests
     public void IsTransientException_NonTransientExceptions_ReturnsFalse()
     {
         // Arrange & Act & Assert
-        Assert.IsFalse(_service.IsTransientException(new ArgumentException()));
+        Assert.IsFalse(_service!.IsTransientException(new ArgumentException()));
         Assert.IsFalse(_service.IsTransientException(new InvalidOperationException()));
         Assert.IsFalse(_service.IsTransientException(new ApiRequestException("Bad request", 400)));
         Assert.IsFalse(_service.IsTransientException(new ApiRequestException("Unauthorized", 401)));
@@ -151,7 +151,7 @@ public class RetryServiceTests
         };
 
         // Act
-        await _service.ExecuteWithRetryAsync(operation);
+        await _service!.ExecuteWithRetryAsync(operation);
 
         // Assert
         Assert.AreEqual(1, callCount);
@@ -173,7 +173,7 @@ public class RetryServiceTests
         };
 
         // Act
-        await _service.ExecuteWithRetryAsync(operation);
+        await _service!.ExecuteWithRetryAsync(operation);
 
         // Assert
         Assert.AreEqual(2, callCount);

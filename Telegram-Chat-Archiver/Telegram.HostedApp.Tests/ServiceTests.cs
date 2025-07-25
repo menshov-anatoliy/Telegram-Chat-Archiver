@@ -15,6 +15,7 @@ public sealed class MarkdownServiceTests
 	[TestInitialize]
 	public void Setup()
 	{
+		// Создаем уникальную директорию для каждого теста
 		_testOutputPath = Path.Combine(Path.GetTempPath(), "telegram_archiver_tests", Guid.NewGuid().ToString());
 		Directory.CreateDirectory(_testOutputPath);
 
@@ -33,9 +34,17 @@ public sealed class MarkdownServiceTests
 	[TestCleanup]
 	public void Cleanup()
 	{
-		if (Directory.Exists(_testOutputPath))
+		try
 		{
-			Directory.Delete(_testOutputPath, true);
+			if (Directory.Exists(_testOutputPath))
+			{
+				Directory.Delete(_testOutputPath, true);
+			}
+		}
+		catch (Exception ex)
+		{
+			// Логируем ошибку, но не падаем
+			Console.WriteLine($"Ошибка при очистке тестовой директории: {ex.Message}");
 		}
 	}
 
@@ -124,6 +133,7 @@ public sealed class MediaDownloadServiceTests
 	[TestInitialize]
 	public void Setup()
 	{
+		// Создаем уникальную директорию для каждого теста
 		_testMediaPath = Path.Combine(Path.GetTempPath(), "telegram_archiver_media_tests", Guid.NewGuid().ToString());
 		Directory.CreateDirectory(_testMediaPath);
 
@@ -141,9 +151,17 @@ public sealed class MediaDownloadServiceTests
 	[TestCleanup]
 	public void Cleanup()
 	{
-		if (Directory.Exists(_testMediaPath))
+		try
 		{
-			Directory.Delete(_testMediaPath, true);
+			if (Directory.Exists(_testMediaPath))
+			{
+				Directory.Delete(_testMediaPath, true);
+			}
+		}
+		catch (Exception ex)
+		{
+			// Логируем ошибку, но не падаем
+			Console.WriteLine($"Ошибка при очистке тестовой директории медиа: {ex.Message}");
 		}
 	}
 

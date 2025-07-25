@@ -11,10 +11,10 @@ namespace Telegram.HostedApp.Tests;
 [TestClass]
 public class StatisticsServiceTests
 {
-    private Mock<ILogger<StatisticsService>> _mockLogger;
-    private Mock<IOptions<ArchiveConfig>> _mockOptions;
-    private ArchiveConfig _config;
-    private StatisticsService _service;
+    private Mock<ILogger<StatisticsService>>? _mockLogger;
+    private Mock<IOptions<ArchiveConfig>>? _mockOptions;
+    private ArchiveConfig? _config;
+    private StatisticsService? _service;
 
     [TestInitialize]
     public void Setup()
@@ -41,7 +41,7 @@ public class StatisticsServiceTests
         var processingTime = 150.0;
 
         // Act
-        await _service.RecordMessageProcessedAsync(message, processingTime);
+        await _service!.RecordMessageProcessedAsync(message, processingTime);
         var stats = await _service.GetStatisticsAsync();
 
         // Assert
@@ -60,7 +60,7 @@ public class StatisticsServiceTests
         var fileSize = 1024L;
 
         // Act
-        await _service.RecordMediaDownloadAsync(fileSize);
+        await _service!.RecordMediaDownloadAsync(fileSize);
         var stats = await _service.GetStatisticsAsync();
 
         // Assert
@@ -76,7 +76,7 @@ public class StatisticsServiceTests
         var exception = new Exception("Test exception");
 
         // Act
-        await _service.RecordErrorAsync(error, exception);
+        await _service!.RecordErrorAsync(error, exception);
         var stats = await _service.GetStatisticsAsync();
 
         // Assert
@@ -87,7 +87,7 @@ public class StatisticsServiceTests
     public async Task RecordArchiveCreatedAsync_UpdatesArchiveCount()
     {
         // Act
-        await _service.RecordArchiveCreatedAsync();
+        await _service!.RecordArchiveCreatedAsync();
         var stats = await _service.GetStatisticsAsync();
 
         // Assert
@@ -107,7 +107,7 @@ public class StatisticsServiceTests
             Date = DateTime.UtcNow
         };
 
-        await _service.RecordMessageProcessedAsync(message, 100.0);
+        await _service!.RecordMessageProcessedAsync(message, 100.0);
         await _service.RecordMediaDownloadAsync(1024);
         await _service.RecordErrorAsync("test error");
 
@@ -156,7 +156,7 @@ public class StatisticsServiceTests
         };
 
         // Act
-        await _service.RecordMessageProcessedAsync(message1, 100.0);
+        await _service!.RecordMessageProcessedAsync(message1, 100.0);
         await _service.RecordMessageProcessedAsync(message2, 100.0);
         await _service.RecordMessageProcessedAsync(message3, 100.0);
 
@@ -191,7 +191,7 @@ public class StatisticsServiceTests
         // Act
         foreach (var message in messages)
         {
-            await _service.RecordMessageProcessedAsync(message, 100.0);
+            await _service!.RecordMessageProcessedAsync(message, 100.0);
         }
 
         var typeStats = await _service.GetMessageTypeStatisticsAsync();

@@ -5,7 +5,7 @@ namespace Telegram.HostedApp.Services;
 /// <summary>
 /// Интерфейс сервиса для сбора и управления статистикой
 /// </summary>
-public interface IStatisticsService
+public interface IStatisticsService : IDisposable
 {
     /// <summary>
     /// Записать обработку сообщения

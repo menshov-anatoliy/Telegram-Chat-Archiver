@@ -63,17 +63,25 @@ public sealed class ConfigurationTests
 				{"TelegramConfig:ApiId", "12345"},
 				{"TelegramConfig:ApiHash", "test_hash"},
 				{"TelegramConfig:PhoneNumber", "+1234567890"},
-				{"ArchiveConfig:OutputPath", "test_archives"}
+				{"ArchiveConfig:OutputPath", "test_archives"},
+				{"ArchiveConfig:SyncStatePath", "test_sync.json"},
+				{"ArchiveConfig:DatabasePath", "test_stats.db"},
+				{"BotConfig:Token", "test_token"},
+				{"BotConfig:AdminChatId", "123456789"}
 			})
 			.Build();
 
 		var services = new ServiceCollection();
 		services.Configure<TelegramConfig>(configuration.GetSection("TelegramConfig"));
 		services.Configure<ArchiveConfig>(configuration.GetSection("ArchiveConfig"));
+		services.Configure<BotConfig>(configuration.GetSection("BotConfig"));
 		services.AddSingleton<IMarkdownService, MarkdownService>();
 		services.AddSingleton<IMediaDownloadService, MediaDownloadService>();
+		services.AddSingleton<ITelegramBotService, TelegramBotService>();
 		services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
-		services.AddSingleton<ITelegramArchiverService, TelegramArchiverService>();
+		services.AddSingleton<ISyncStateService, SyncStateService>();
+		services.AddSingleton<IStatisticsService, StatisticsService>();
+		services.AddSingleton<IRetryService, RetryService>();
 		services.AddLogging();
 
 		// Act
@@ -82,17 +90,25 @@ public sealed class ConfigurationTests
 		// Assert
 		var telegramConfig = serviceProvider.GetService<IOptions<TelegramConfig>>();
 		var archiveConfig = serviceProvider.GetService<IOptions<ArchiveConfig>>();
-		var archiverService = serviceProvider.GetService<ITelegramArchiverService>();
+		var botConfig = serviceProvider.GetService<IOptions<BotConfig>>();
 		var markdownService = serviceProvider.GetService<IMarkdownService>();
 		var mediaService = serviceProvider.GetService<IMediaDownloadService>();
+		var botService = serviceProvider.GetService<ITelegramBotService>();
 		var notificationService = serviceProvider.GetService<ITelegramNotificationService>();
+		var syncStateService = serviceProvider.GetService<ISyncStateService>();
+		var statisticsService = serviceProvider.GetService<IStatisticsService>();
+		var retryService = serviceProvider.GetService<IRetryService>();
 
 		Assert.IsNotNull(telegramConfig);
 		Assert.IsNotNull(archiveConfig);
-		Assert.IsNotNull(archiverService);
+		Assert.IsNotNull(botConfig);
 		Assert.IsNotNull(markdownService);
 		Assert.IsNotNull(mediaService);
+		Assert.IsNotNull(botService);
 		Assert.IsNotNull(notificationService);
+		Assert.IsNotNull(syncStateService);
+		Assert.IsNotNull(statisticsService);
+		Assert.IsNotNull(retryService);
 		Assert.AreEqual(12345, telegramConfig.Value.ApiId);
 		Assert.AreEqual("test_hash", telegramConfig.Value.ApiHash);
 	}

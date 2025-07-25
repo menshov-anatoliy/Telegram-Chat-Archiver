@@ -66,13 +66,16 @@ public class TelegramBotService : ITelegramBotService, IDisposable
 
 		try
 		{
+			_logger.LogDebug("Попытка отправки сообщения администратору (ID: {AdminUserId}): {Message}", 
+				_config.AdminUserId, message);
+
 			await _botClient.SendTextMessageAsync(
 				chatId: _config.AdminUserId,
 				text: TruncateMessage(message),
 				parseMode: ParseMode.Html,
 				cancellationToken: cancellationToken);
 
-			_logger.LogDebug("Сообщение отправлено администратору: {Message}", message);
+			_logger.LogDebug("Сообщение успешно отправлено администратору");
 			
 			// Задержка между сообщениями
 			if (_config.MessageDelayMs > 0)
@@ -80,9 +83,34 @@ public class TelegramBotService : ITelegramBotService, IDisposable
 				await Task.Delay(_config.MessageDelayMs, cancellationToken);
 			}
 		}
+		catch (ApiRequestException apiEx) when (apiEx.Message.Contains("chat not found"))
+		{
+			_logger.LogWarning("Чат администратора не найден (ID: {AdminUserId}). " +
+				"Администратор должен сначала написать боту команду /start. " +
+				"Сообщение: {Message}", _config.AdminUserId, message);
+			
+			// Не бросаем исключение, чтобы не остановить работу приложения
+		}
+		catch (ApiRequestException apiEx) when (apiEx.Message.Contains("bot was blocked"))
+		{
+			_logger.LogWarning("Бот заблокирован администратором (ID: {AdminUserId}). " +
+				"Сообщение: {Message}", _config.AdminUserId, message);
+		}
+		catch (ApiRequestException apiEx) when (apiEx.Message.Contains("user not found"))
+		{
+			_logger.LogWarning("Пользователь администратора не найден (ID: {AdminUserId}). " +
+				"Проверьте правильность AdminUserId в конфигурации. " +
+				"Сообщение: {Message}", _config.AdminUserId, message);
+		}
+		catch (ApiRequestException apiEx)
+		{
+			_logger.LogError(apiEx, "Ошибка Telegram API при отправке сообщения администратору (ID: {AdminUserId}): {ApiError}. " +
+				"Сообщение: {Message}", _config.AdminUserId, apiEx.Message, message);
+		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Ошибка при отправке сообщения администратору");
+			_logger.LogError(ex, "Общая ошибка при отправке сообщения администратору (ID: {AdminUserId}). " +
+				"Сообщение: {Message}", _config.AdminUserId, message);
 		}
 	}
 
@@ -132,20 +160,65 @@ public class TelegramBotService : ITelegramBotService, IDisposable
 	/// </summary>
 	public async Task<string> ProcessManagementCommandAsync(string command, long userId, CancellationToken cancellationToken = default)
 	{
+		// Специальная обработка команды /start для любого пользователя
+		if (command.ToLower() == "/start")
+		{
+			if (userId == _config.AdminUserId)
+			{
+				_logger.LogInformation("Администратор (ID: {AdminUserId}) инициализировал диалог с ботом", userId);
+				return "👋 Добро пожаловать, администратор! Telegram Chat Archiver активен и готов к отправке уведомлений.";
+			}
+			else
+			{
+				_logger.LogInformation("Пользователь (ID: {UserId}) попытался использовать бота", userId);
+				return $"👋 Добро пожаловать! Ваш Telegram ID: <code>{userId}</code>\n\n" +
+					   "Этот бот предназначен для управления Telegram Chat Archiver. " +
+					   "Доступ к командам управления имеет только администратор.\n\n" +
+					   "Если вы администратор, укажите ваш ID в конфигурации приложения.";
+			}
+		}
+
+		// Команда для получения своего ID (доступна всем)
+		if (command.ToLower() == "/myid")
+		{
+			return $"🆔 Ваш Telegram ID: <code>{userId}</code>\n\n" +
+				   "Скопируйте этот ID и укажите его в параметре AdminUserId в конфигурации бота.";
+		}
+
+		// Остальные команды только для администратора
 		if (userId != _config.AdminUserId)
 		{
-			return "❌ Доступ запрещен. Только администратор может использовать команды контроля.";
+			_logger.LogWarning("Пользователь (ID: {UserId}) попытался использовать команду администратора: {Command}", 
+				userId, command);
+			return "❌ Доступ запрещен. Только администратор может использовать команды управления.";
 		}
 
 		return command.ToLower() switch
 		{
-			"/start" => "👋 Добро пожаловать! Telegram Chat Archiver активен.",
 			"/status" => await GetStatusAsync(),
 			"/stats" => await GetStatisticsAsync(),
 			"/help" => GetHelpMessage(),
 			"/restart_bot" => await RestartBotPollingAsync(),
+			"/test_notifications" => await TestNotificationsAsync(),
 			_ => "❓ Неизвестная команда. Используйте /help для списка доступных команд."
 		};
+	}
+
+	/// <summary>
+	/// Тестирование уведомлений
+	/// </summary>
+	private async Task<string> TestNotificationsAsync()
+	{
+		try
+		{
+			await SendAdminMessageAsync("🧪 Тест уведомлений: сообщение успешно отправлено!");
+			return "✅ Тест уведомлений пройден успешно";
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Ошибка при тестировании уведомлений");
+			return $"❌ Ошибка при тестировании уведомлений: {ex.Message}";
+		}
 	}
 
 	/// <summary>
@@ -158,13 +231,50 @@ public class TelegramBotService : ITelegramBotService, IDisposable
 		try
 		{
 			var me = await _botClient.GetMeAsync();
-			_logger.LogDebug("Bot доступен: @{Username}", me.Username);
+			_logger.LogDebug("Bot доступен: @{Username} (ID: {BotId})", me.Username, me.Id);
+			
+			// Дополнительная проверка: можем ли мы отправить сообщение администратору
+			if (_config.AdminUserId != 0 && _config.EnableBotNotifications)
+			{
+				await ValidateAdminAccessAsync();
+			}
+			
 			return true;
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Ошибка при проверке доступности бота");
 			return false;
+		}
+	}
+
+	/// <summary>
+	/// Проверка доступности администратора для отправки сообщений
+	/// </summary>
+	private async Task ValidateAdminAccessAsync()
+	{
+		try
+		{
+			// Пытаемся получить информацию о чате с администратором
+			var chat = await _botClient!.GetChatAsync(_config.AdminUserId);
+			_logger.LogInformation("Администратор найден: {FirstName} {LastName} (@{Username})", 
+				chat.FirstName, chat.LastName, chat.Username);
+		}
+		catch (ApiRequestException apiEx) when (apiEx.Message.Contains("chat not found"))
+		{
+			_logger.LogWarning("⚠️ Администратор (ID: {AdminUserId}) не найден. " +
+				"Администратор должен сначала написать боту команду /start для инициализации диалога.", 
+				_config.AdminUserId);
+		}
+		catch (ApiRequestException apiEx) when (apiEx.Message.Contains("user not found"))
+		{
+			_logger.LogError("❌ Пользователь с ID {AdminUserId} не существует. " +
+				"Проверьте правильность AdminUserId в конфигурации.", _config.AdminUserId);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Не удалось проверить доступность администратора (ID: {AdminUserId})", 
+				_config.AdminUserId);
 		}
 	}
 
@@ -241,8 +351,9 @@ public class TelegramBotService : ITelegramBotService, IDisposable
 				
 				_logger.LogInformation("Прослушивание команд бота запущено успешно");
 
-				// Отправим уведомление о запуске
-				await SendAdminMessageAsync($"🚀 Telegram Chat Archiver запущен (попытка {attempt})", cancellationToken);
+				// Не отправляем уведомление о запуске автоматически
+				// Администратор должен сначала инициализировать диалог командой /start
+				_logger.LogInformation("Bot готов к приему команд. Администратор может написать /start для инициализации диалога.");
 				return; // Успешный запуск
 			}
 			catch (ApiRequestException apiEx) when (apiEx.Message.Contains("Conflict"))
@@ -532,11 +643,22 @@ public class TelegramBotService : ITelegramBotService, IDisposable
 		return """
 			   📋 <b>Доступные команды:</b>
 			   
-			   /start - Приветствие
+			   🔧 <b>Общие команды:</b>
+			   /start - Инициализация диалога с ботом
+			   /myid - Получить свой Telegram ID
+			   
+			   ⚙️ <b>Команды администратора:</b>
 			   /status - Статус системы
 			   /stats - Статистика обработки
+			   /test_notifications - Тест отправки уведомлений
 			   /restart_bot - Перезапуск Bot polling
 			   /help - Это сообщение
+			   
+			   💡 <b>Примечание:</b> Если вы получаете ошибки "chat not found", 
+			   обязательно выполните команду /start для инициализации диалога.
+			   
+			   🔑 <b>Для администраторов:</b> Используйте /myid для получения вашего ID
+			   и укажите его в параметре AdminUserId в конфигурации.
 			   """;
 	}
 
