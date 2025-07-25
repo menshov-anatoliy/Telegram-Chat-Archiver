@@ -5,23 +5,23 @@ namespace Telegram.HostedApp.Configuration;
 /// </summary>
 public class TelegramConfig
 {
-    /// <summary>
-    /// API ID приложения из my.telegram.org
-    /// </summary>
-    public int ApiId { get; set; }
+	/// <summary>
+	/// API ID приложения из my.telegram.org
+	/// </summary>
+	public int ApiId { get; set; }
 
-    /// <summary>
-    /// API Hash приложения из my.telegram.org
-    /// </summary>
-    public string ApiHash { get; set; } = string.Empty;
+	/// <summary>
+	/// API Hash приложения из my.telegram.org
+	/// </summary>
+	public string ApiHash { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Номер телефона для авторизации
-    /// </summary>
-    public string PhoneNumber { get; set; } = string.Empty;
+	/// <summary>
+	/// Номер телефона для авторизации
+	/// </summary>
+	public string PhoneNumber { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Путь к файлу сессии
-    /// </summary>
-    public string SessionFile { get; set; } = "session.dat";
+	/// <summary>
+	/// Путь к файлу сессии
+	/// </summary>
+	public string SessionFile { get; set; } = "session.dat";
 }

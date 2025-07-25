@@ -9,6 +9,7 @@ class TelegramArchiverDashboard {
         this.messageTypesChart = null;
         this.updateInterval = 30000; // 30 секунд
         this.activityLogMaxItems = 50;
+        this.apiAvailable = true;
         
         this.init();
     }
@@ -17,78 +18,94 @@ class TelegramArchiverDashboard {
      * Инициализация dashboard
      */
     init() {
-        this.initializeCharts();
-        this.loadInitialData();
-        this.startAutoUpdate();
-        this.setupEventListeners();
+        this.addActivityLogItem('info', 'Dashboard инициализируется...', new Date());
+        
+        try {
+            this.initializeCharts();
+            this.loadInitialData();
+            this.startAutoUpdate();
+            this.setupEventListeners();
+            
+            this.addActivityLogItem('success', 'Dashboard успешно инициализирован', new Date());
+        } catch (error) {
+            console.error('Ошибка инициализации dashboard:', error);
+            this.addActivityLogItem('error', 'Ошибка инициализации dashboard', new Date());
+        }
     }
 
     /**
      * Инициализация графиков
      */
     initializeCharts() {
-        // График сообщений во времени
-        const messagesCtx = document.getElementById('messagesChart').getContext('2d');
-        this.messagesChart = new Chart(messagesCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Messages Processed',
-                    data: [],
-                    borderColor: '#0088cc',
-                    backgroundColor: 'rgba(0, 136, 204, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
+        try {
+            // График сообщений во времени
+            const messagesCtx = document.getElementById('messagesChart').getContext('2d');
+            this.messagesChart = new Chart(messagesCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Messages Processed',
+                        data: [],
+                        borderColor: '#0088cc',
+                        backgroundColor: 'rgba(0, 136, 204, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
                         }
                     }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
                 }
-            }
-        });
+            });
 
-        // График типов сообщений
-        const messageTypesCtx = document.getElementById('messageTypesChart').getContext('2d');
-        this.messageTypesChart = new Chart(messageTypesCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Text', 'Photo', 'Video', 'Document', 'Voice', 'Other'],
-                datasets: [{
-                    data: [0, 0, 0, 0, 0, 0],
-                    backgroundColor: [
-                        '#28a745',
-                        '#17a2b8', 
-                        '#ffc107',
-                        '#dc3545',
-                        '#6f42c1',
-                        '#6c757d'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
+            // График типов сообщений
+            const messageTypesCtx = document.getElementById('messageTypesChart').getContext('2d');
+            this.messageTypesChart = new Chart(messageTypesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Text', 'Photo', 'Video', 'Document', 'Voice', 'Other'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#28a745',
+                            '#17a2b8', 
+                            '#ffc107',
+                            '#dc3545',
+                            '#6f42c1',
+                            '#6c757d'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
                     }
                 }
-            }
-        });
+            });
+            
+            this.addActivityLogItem('success', 'Графики инициализированы', new Date());
+        } catch (error) {
+            console.error('Ошибка инициализации графиков:', error);
+            this.addActivityLogItem('error', 'Ошибка инициализации графиков', new Date());
+        }
     }
 
     /**
@@ -96,18 +113,117 @@ class TelegramArchiverDashboard {
      */
     async loadInitialData() {
         try {
-            await Promise.all([
-                this.updateSystemStatus(),
-                this.updateHealthChecks(),
-                this.updateSystemInfo(),
-                this.updateStatistics()
-            ]);
-            
-            this.addActivityLogItem('info', 'Dashboard initialized successfully', new Date());
+            // Сначала проверим доступность API
+            const pingResponse = await this.safeFetch('/api/monitoring/ping');
+            if (pingResponse.ok) {
+                this.apiAvailable = true;
+                this.addActivityLogItem('success', 'API доступно', new Date());
+                
+                await Promise.all([
+                    this.updateSystemStatus(),
+                    this.updateHealthChecks(),
+                    this.updateSystemInfo(),
+                    this.updateStatistics()
+                ]);
+            } else {
+                throw new Error('API недоступно');
+            }
         } catch (error) {
-            console.error('Error loading initial data:', error);
-            this.addActivityLogItem('error', 'Failed to load initial data', new Date());
+            console.error('Ошибка загрузки данных:', error);
+            this.apiAvailable = false;
+            this.showOfflineMode();
+            this.addActivityLogItem('warning', 'Переход в офлайн режим - API недоступно', new Date());
         }
+    }
+
+    /**
+     * Безопасный fetch с таймаутом
+     */
+    async safeFetch(url, timeout = 5000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+            const response = await fetch(url, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
+    }
+
+    /**
+     * Показать режим офлайн
+     */
+    showOfflineMode() {
+        document.getElementById('system-status').textContent = 'Offline';
+        document.getElementById('system-status').closest('.card').className = 'card text-white bg-secondary';
+        
+        // Показываем базовую информацию
+        this.updateSystemInfoOffline();
+        this.updateHealthChecksOffline();
+        
+        // Добавляем тестовые данные в графики
+        this.addMessageDataPoint(0);
+    }
+
+    /**
+     * Обновление информации о системе в офлайн режиме
+     */
+    updateSystemInfoOffline() {
+        const systemInfoContainer = document.getElementById('system-info');
+        systemInfoContainer.innerHTML = '';
+        
+        const infoItems = [
+            { label: 'Status', value: 'Offline Mode' },
+            { label: 'Version', value: '1.0.0' },
+            { label: 'Framework', value: '.NET 8.0' },
+            { label: 'Environment', value: 'Development' },
+            { label: 'Mode', value: 'Standalone Dashboard' }
+        ];
+        
+        infoItems.forEach(item => {
+            const infoItem = document.createElement('div');
+            infoItem.className = 'system-info-item';
+            infoItem.innerHTML = `
+                <div class="system-info-label">${item.label}:</div>
+                <div class="system-info-value">${item.value}</div>
+            `;
+            systemInfoContainer.appendChild(infoItem);
+        });
+    }
+
+    /**
+     * Обновление health checks в офлайн режиме
+     */
+    updateHealthChecksOffline() {
+        const healthChecksContainer = document.getElementById('health-checks');
+        healthChecksContainer.innerHTML = '';
+        
+        const checks = [
+            { name: 'Frontend', status: 'healthy' },
+            { name: 'API Backend', status: 'unhealthy' },
+            { name: 'Dashboard', status: 'healthy' }
+        ];
+        
+        checks.forEach(check => {
+            const healthItem = document.createElement('div');
+            healthItem.className = `health-check-item ${check.status}`;
+            
+            healthItem.innerHTML = `
+                <div class="health-check-name">${check.name}</div>
+                <div class="health-check-status status-${check.status}>
+                    ${check.status}
+                </div>
+            `;
+            
+            healthChecksContainer.appendChild(healthItem);
+        });
+        
+        document.getElementById('health-last-updated').textContent = new Date().toLocaleString();
     }
 
     /**
@@ -115,7 +231,9 @@ class TelegramArchiverDashboard {
      */
     async updateSystemStatus() {
         try {
-            const response = await fetch('/api/monitoring/status');
+            const response = await this.safeFetch('/api/monitoring/status');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const data = await response.json();
             
             // Обновляем статус системы
@@ -143,8 +261,9 @@ class TelegramArchiverDashboard {
             document.getElementById('last-check-time').textContent = new Date().toLocaleString();
             
         } catch (error) {
-            console.error('Error updating system status:', error);
+            console.error('Ошибка обновления статуса:', error);
             document.getElementById('system-status').textContent = 'Error';
+            this.addActivityLogItem('error', 'Ошибка получения статуса системы', new Date());
         }
     }
 
@@ -153,7 +272,9 @@ class TelegramArchiverDashboard {
      */
     async updateHealthChecks() {
         try {
-            const response = await fetch('/api/monitoring/status');
+            const response = await this.safeFetch('/api/monitoring/status');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const data = await response.json();
             
             const healthChecksContainer = document.getElementById('health-checks');
@@ -176,9 +297,8 @@ class TelegramArchiverDashboard {
             document.getElementById('health-last-updated').textContent = new Date().toLocaleString();
             
         } catch (error) {
-            console.error('Error updating health checks:', error);
-            document.getElementById('health-checks').innerHTML = 
-                '<div class="alert alert-danger">Failed to load health checks</div>';
+            console.error('Ошибка обновления health checks:', error);
+            this.updateHealthChecksOffline();
         }
     }
 
@@ -187,7 +307,9 @@ class TelegramArchiverDashboard {
      */
     async updateSystemInfo() {
         try {
-            const response = await fetch('/api/monitoring/info');
+            const response = await this.safeFetch('/api/monitoring/info');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const data = await response.json();
             
             const systemInfoContainer = document.getElementById('system-info');
@@ -217,9 +339,8 @@ class TelegramArchiverDashboard {
             document.getElementById('app-version').textContent = data.version;
             
         } catch (error) {
-            console.error('Error updating system info:', error);
-            document.getElementById('system-info').innerHTML = 
-                '<div class="alert alert-danger">Failed to load system info</div>';
+            console.error('Ошибка обновления системной информации:', error);
+            this.updateSystemInfoOffline();
         }
     }
 
@@ -228,7 +349,9 @@ class TelegramArchiverDashboard {
      */
     async updateStatistics() {
         try {
-            const response = await fetch('/api/monitoring/statistics');
+            const response = await this.safeFetch('/api/monitoring/statistics');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const data = await response.json();
             
             // Обновляем счетчики
@@ -251,7 +374,9 @@ class TelegramArchiverDashboard {
             this.addMessageDataPoint(totalMessages);
             
         } catch (error) {
-            console.error('Error updating statistics:', error);
+            console.error('Ошибка обновления статистики:', error);
+            // В офлайн режиме показываем нули
+            document.getElementById('messages-count').textContent = '0';
         }
     }
 
@@ -260,15 +385,17 @@ class TelegramArchiverDashboard {
      */
     async updateMemoryUsage() {
         try {
-            const response = await fetch('/api/monitoring/status');
+            const response = await this.safeFetch('/api/monitoring/info');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const data = await response.json();
             
-            if (data.results && data.results.resources && data.results.resources.data) {
-                const memoryMB = data.results.resources.data.MemoryUsageMB || 0;
-                document.getElementById('memory-usage').textContent = `${memoryMB} MB`;
-            }
+            const memoryBytes = data.workingSet || 0;
+            const memoryMB = Math.round(memoryBytes / (1024 * 1024));
+            document.getElementById('memory-usage').textContent = `${memoryMB} MB`;
         } catch (error) {
-            console.error('Error updating memory usage:', error);
+            console.error('Ошибка обновления памяти:', error);
+            document.getElementById('memory-usage').textContent = '0 MB';
         }
     }
 
@@ -370,25 +497,27 @@ class TelegramArchiverDashboard {
     formatUptime(uptimeString) {
         try {
             // Парсим строку времени работы (например, "1.12:34:56.789")
-            const parts = uptimeString.split(':');
-            if (parts.length >= 3) {
-                const hours = parseInt(parts[0].split('.').pop() || '0');
-                const minutes = parseInt(parts[1]);
-                const days = Math.floor(hours / 24);
-                const remainingHours = hours % 24;
-                
-                if (days > 0) {
-                    return `${days}d ${remainingHours}h ${minutes}m`;
-                } else if (remainingHours > 0) {
-                    return `${remainingHours}h ${minutes}m`;
-                } else {
-                    return `${minutes}m`;
+            if (typeof uptimeString === 'string') {
+                const parts = uptimeString.split(':');
+                if (parts.length >= 3) {
+                    const hours = parseInt(parts[0].split('.').pop() || '0');
+                    const minutes = parseInt(parts[1]);
+                    const days = Math.floor(hours / 24);
+                    const remainingHours = hours % 24;
+                    
+                    if (days > 0) {
+                        return `${days}d ${remainingHours}h ${minutes}m`;
+                    } else if (remainingHours > 0) {
+                        return `${remainingHours}h ${minutes}m`;
+                    } else {
+                        return `${minutes}m`;
+                    }
                 }
             }
         } catch (error) {
-            console.error('Error formatting uptime:', error);
+            console.error('Ошибка форматирования uptime:', error);
         }
-        return uptimeString;
+        return uptimeString || 'Unknown';
     }
 
     /**
@@ -407,15 +536,29 @@ class TelegramArchiverDashboard {
      */
     startAutoUpdate() {
         setInterval(async () => {
-            try {
-                await this.updateSystemStatus();
-                await this.updateHealthChecks();
-                await this.updateStatistics();
-                
-                this.addActivityLogItem('info', 'Dashboard data updated', new Date());
-            } catch (error) {
-                console.error('Error during auto update:', error);
-                this.addActivityLogItem('error', 'Failed to update dashboard data', new Date());
+            if (this.apiAvailable) {
+                try {
+                    await this.updateSystemStatus();
+                    await this.updateHealthChecks();
+                    await this.updateStatistics();
+                    
+                    this.addActivityLogItem('info', 'Данные обновлены', new Date());
+                } catch (error) {
+                    console.error('Ошибка автообновления:', error);
+                    this.addActivityLogItem('error', 'Ошибка автообновления данных', new Date());
+                }
+            } else {
+                // Периодически проверяем доступность API
+                try {
+                    const response = await this.safeFetch('/api/monitoring/ping');
+                    if (response.ok) {
+                        this.apiAvailable = true;
+                        this.addActivityLogItem('success', 'API снова доступно', new Date());
+                        await this.loadInitialData();
+                    }
+                } catch (error) {
+                    // API все еще недоступно
+                }
             }
         }, this.updateInterval);
     }
@@ -434,18 +577,20 @@ class TelegramArchiverDashboard {
         
         // Обработка изменения размера окна
         window.addEventListener('resize', () => {
-            this.messagesChart.resize();
-            this.messageTypesChart.resize();
+            if (this.messagesChart) this.messagesChart.resize();
+            if (this.messageTypesChart) this.messageTypesChart.resize();
         });
         
-        // Обработка видимости страницы (остановка обновлений когда вкладка неактивна)
+        // Обработка видимости страницы
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                this.addActivityLogItem('info', 'Dashboard paused (tab inactive)', new Date());
+                this.addActivityLogItem('info', 'Dashboard приостановлен (вкладка неактивна)', new Date());
             } else {
-                this.addActivityLogItem('info', 'Dashboard resumed (tab active)', new Date());
+                this.addActivityLogItem('info', 'Dashboard возобновлен (вкладка активна)', new Date());
                 // Немедленное обновление при возврате на вкладку
-                this.updateSystemStatus();
+                if (this.apiAvailable) {
+                    this.updateSystemStatus();
+                }
             }
         });
     }

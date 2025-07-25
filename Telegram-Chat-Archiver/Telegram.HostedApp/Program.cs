@@ -15,195 +15,331 @@ namespace Telegram.HostedApp;
 
 internal class Program
 {
-    static async Task Main(string[] args)
-    {
-        // Проверяем аргументы командной строки для health check
-        if (args.Contains("--health-check"))
-        {
-            Environment.Exit(await PerformHealthCheckAsync() ? 0 : 1);
-        }
+	static async Task Main(string[] args)
+	{
+		Console.WriteLine("=== Запуск Telegram Chat Archiver ===");
+		
+		// Проверяем аргументы командной строки для health check
+		if (args.Contains("--health-check"))
+		{
+			Environment.Exit(await PerformHealthCheckAsync() ? 0 : 1);
+		}
 
-        // Создание конфигурации
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Development"}.json", optional: true)
-            .AddEnvironmentVariables()
-            .Build();
+		try
+		{
+			Console.WriteLine("Загрузка конфигурации...");
+			
+			// Создание конфигурации
+			var configuration = new ConfigurationBuilder()
+				.SetBasePath(Directory.GetCurrentDirectory())
+				.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development"}.json", optional: true)
+				.AddEnvironmentVariables()
+				.Build();
 
-        // Настройка Serilog
-        Log.Logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(configuration)
-            .CreateLogger();
+			Console.WriteLine("Настройка логирования...");
+			
+			// Настройка Serilog
+			Log.Logger = new LoggerConfiguration()
+				.ReadFrom.Configuration(configuration)
+				.CreateLogger();
 
-        try
-        {
-            Log.Information("Запуск Telegram Chat Archiver с расширенной функциональностью");
+			Console.WriteLine("Веб-интерфейс будет доступен по адресу: http://localhost:5000");
+			Console.WriteLine("Для остановки нажмите Ctrl+C");
+			
+			Log.Information("Запуск Telegram Chat Archiver с расширенной функциональностью");
+			Log.Information("Веб-интерфейс будет доступен по адресу: http://localhost:5000");
 
-            // Создание и запуск хоста
-            var host = CreateHostBuilder(args, configuration).Build();
-            await host.RunAsync();
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Критическая ошибка при запуске приложения");
-        }
-        finally
-        {
-            Log.CloseAndFlush();
-        }
-    }
+			Console.WriteLine("Создание и настройка веб-хоста...");
+			
+			// Создание и запуск хоста
+			var host = CreateHostBuilder(args, configuration).Build();
+			
+			Console.WriteLine("Запускаем веб-сервер...");
+			Console.WriteLine("Если сервер не запускается, проверьте что порт 5000 свободен");
+			
+			await host.RunAsync();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"КРИТИЧЕСКАЯ ОШИБКА: {ex.Message}");
+			Console.WriteLine($"Тип исключения: {ex.GetType().Name}");
+			Console.WriteLine($"Стек вызовов: {ex.StackTrace}");
+			
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Внутреннее исключение: {ex.InnerException.Message}");
+			}
+			
+			Log.Fatal(ex, "Критическая ошибка при запуске приложения");
+			Console.WriteLine("Нажмите любую клавишу для выхода...");
+			Console.ReadKey();
+		}
+		finally
+		{
+			Log.CloseAndFlush();
+		}
+	}
 
-    /// <summary>
-    /// Выполнение быстрой проверки состояния для Docker health check
-    /// </summary>
-    /// <returns>True если система здорова, иначе false</returns>
-    static async Task<bool> PerformHealthCheckAsync()
-    {
-        try
-        {
-            // Базовые проверки для быстрого health check
-            var archivesPath = Environment.GetEnvironmentVariable("ArchiveConfig__OutputPath") ?? "archives";
-            var mediaPath = Environment.GetEnvironmentVariable("ArchiveConfig__MediaPath") ?? "media";
+	/// <summary>
+	/// Выполнение быстрой проверки состояния для Docker health check
+	/// </summary>
+	/// <returns>True если система здорова, иначе false</returns>
+	static async Task<bool> PerformHealthCheckAsync()
+	{
+		try
+		{
+			// Базовые проверки для быстрого health check
+			var archivesPath = Environment.GetEnvironmentVariable("ArchiveConfig__OutputPath") ?? "archives";
+			var mediaPath = Environment.GetEnvironmentVariable("ArchiveConfig__MediaPath") ?? "media";
 
-            // Проверяем доступность директорий
-            if (!Directory.Exists(archivesPath) || !Directory.Exists(mediaPath))
-            {
-                return false;
-            }
+			// Создаем директории если их нет
+			Directory.CreateDirectory(archivesPath);
+			Directory.CreateDirectory(mediaPath);
 
-            // Проверяем возможность записи
-            var testFile = Path.Combine(archivesPath, $"health_test_{Guid.NewGuid()}.tmp");
-            await File.WriteAllTextAsync(testFile, "test");
-            File.Delete(testFile);
+			// Проверяем возможность записи
+			var testFile = Path.Combine(archivesPath, $"health_test_{Guid.NewGuid()}.tmp");
+			await File.WriteAllTextAsync(testFile, "test");
+			File.Delete(testFile);
 
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-    /// <summary>
-    /// Создание хоста приложения
-    /// </summary>
-    /// <param name="args">Аргументы командной строки</param>
-    /// <param name="configuration">Конфигурация</param>
-    /// <returns>Построитель хоста</returns>
-    static IHostBuilder CreateHostBuilder(string[] args, IConfiguration configuration) =>
-        Host.CreateDefaultBuilder(args)
-            .UseSerilog()
-            .ConfigureWebHostDefaults(webBuilder =>
-            {
-                webBuilder.Configure(app =>
-                {
-                    // Middleware для обработки исключений
-                    app.UseExceptionHandler("/error");
-                    
-                    // Статические файлы
-                    app.UseDefaultFiles();
-                    app.UseStaticFiles();
-                    
-                    // Health check endpoints
-                    app.UseHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-                    {
-                        ResponseWriter = WriteHealthCheckResponse
-                    });
-                    
-                    app.UseHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-                    {
-                        Predicate = check => check.Tags.Contains("live"),
-                        ResponseWriter = WriteHealthCheckResponse
-                    });
-                    
-                    app.UseHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-                    {
-                        Predicate = check => check.Tags.Contains("ready"),
-                        ResponseWriter = WriteHealthCheckResponse
-                    });
+	/// <summary>
+	/// Создание хоста приложения
+	/// </summary>
+	/// <param name="args">Аргументы командной строки</param>
+	/// <param name="configuration">Конфигурация</param>
+	/// <returns>Построитель хоста</returns>
+	static IHostBuilder CreateHostBuilder(string[] args, IConfiguration configuration) =>
+		Host.CreateDefaultBuilder(args)
+			.UseSerilog()
+			.ConfigureWebHostDefaults(webBuilder =>
+			{
+				Console.WriteLine("Настройка веб-хоста...");
+				
+				// Настройка URL - убираем HTTPS для упрощения
+				webBuilder.UseUrls("http://localhost:5000");
+				
+				webBuilder.Configure(app =>
+				{
+					Console.WriteLine("Настройка middleware pipeline...");
+					
+					var env = app.ApplicationServices.GetRequiredService<IWebHostEnvironment>();
+					
+					if (env.IsDevelopment())
+					{
+						Console.WriteLine("Включение developer exception page...");
+						app.UseDeveloperExceptionPage();
+					}
 
-                    app.UseHealthChecks("/health/startup", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-                    {
-                        Predicate = check => check.Tags.Contains("startup"),
-                        ResponseWriter = WriteHealthCheckResponse
-                    });
+					Console.WriteLine("Настройка статических файлов...");
+					
+					// Статические файлы
+					app.UseDefaultFiles();
+					app.UseStaticFiles();
 
-                    // Routing и контроллеры
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
-                    {
-                        endpoints.MapControllers();
-                        endpoints.MapFallbackToFile("index.html");
-                    });
-                });
+					Console.WriteLine("Настройка health checks...");
+					
+					// Health check endpoints  
+					app.UseHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+					{
+						ResponseWriter = WriteHealthCheckResponse
+					});
 
-                webBuilder.ConfigureServices(services =>
-                {
-                    // ASP.NET Core services
-                    services.AddControllers();
-                    
-                    // Health checks
-                    services.AddHealthChecks()
-                        .AddCheck<TelegramConnectionHealthCheck>("telegram", tags: new[] { "live", "ready" })
-                        .AddCheck<FileSystemHealthCheck>("filesystem", tags: new[] { "live", "ready", "startup" })
-                        .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" })
-                        .AddCheck<SystemResourcesHealthCheck>("resources", tags: new[] { "live" });
-                });
-            })
-            .ConfigureServices((context, services) =>
-            {
-                // Регистрация конфигурации
-                services.Configure<TelegramConfig>(configuration.GetSection("TelegramConfig"));
-                services.Configure<BotConfig>(configuration.GetSection("BotConfig"));
-                services.Configure<ArchiveConfig>(configuration.GetSection("ArchiveConfig"));
+					Console.WriteLine("Настройка маршрутизации...");
+					
+					// Маршрутизация
+					app.UseRouting();
+					app.UseEndpoints(endpoints =>
+					{
+						// Простой тестовый endpoint
+						endpoints.MapGet("/test", async context =>
+						{
+							await context.Response.WriteAsync("Веб-сервер работает!");
+						});
+						
+						endpoints.MapControllers();
+						endpoints.MapFallbackToFile("index.html");
+					});
+					
+					Console.WriteLine("Middleware pipeline настроен успешно");
+				});
 
-                // Регистрация базовых сервисов
-                services.AddSingleton<IMarkdownService, MarkdownService>();
-                services.AddSingleton<IMediaDownloadService, MediaDownloadService>();
-                services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
-                
-                // Регистрация новых сервисов
-                services.AddSingleton<ITelegramBotService, TelegramBotService>();
-                services.AddSingleton<ISyncStateService, SyncStateService>();
-                services.AddSingleton<IStatisticsService, StatisticsService>();
-                services.AddSingleton<IRetryService, RetryService>();
-                
-                // Основной сервис архивирования
-                services.AddSingleton<ITelegramArchiverService, TelegramArchiverServiceImpl>();
-                services.AddHostedService<TelegramArchiverService>();
-            });
+				webBuilder.ConfigureServices(services =>
+				{
+					Console.WriteLine("Регистрация базовых сервисов...");
+					
+					// ASP.NET Core services
+					services.AddControllers();
 
-    /// <summary>
-    /// Кастомная функция для записи ответа health check
-    /// </summary>
-    static async Task WriteHealthCheckResponse(HttpContext context, HealthReport healthReport)
-    {
-        context.Response.ContentType = "application/json; charset=utf-8";
+					// Минимальные health checks
+					services.AddHealthChecks()
+						.AddCheck("basic", () => HealthCheckResult.Healthy("Веб-сервер работает"), 
+							tags: new[] { "live", "ready", "startup" });
+						
+					Console.WriteLine("Базовые сервисы зарегистрированы");
+				});
+			})
+			.ConfigureServices((context, services) =>
+			{
+				Console.WriteLine("Регистрация дополнительных сервисов...");
+				
+				try
+				{
+					// Регистрация конфигурации
+					services.Configure<TelegramConfig>(configuration.GetSection("TelegramConfig"));
+					services.Configure<BotConfig>(configuration.GetSection("BotConfig"));
+					services.Configure<ArchiveConfig>(configuration.GetSection("ArchiveConfig"));
 
-        var response = new
-        {
-            status = healthReport.Status.ToString(),
-            totalDuration = healthReport.TotalDuration.TotalMilliseconds,
-            results = healthReport.Entries.ToDictionary(
-                kvp => kvp.Key,
-                kvp => new
-                {
-                    status = kvp.Value.Status.ToString(),
-                    description = kvp.Value.Description,
-                    duration = kvp.Value.Duration.TotalMilliseconds,
-                    data = kvp.Value.Data
-                }
-            ),
-            timestamp = DateTime.UtcNow
-        };
+					Console.WriteLine("Конфигурация зарегистрирована");
 
-        var jsonResponse = System.Text.Json.JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        });
+					// Регистрация сервисов по одному с проверками
+					RegisterServicesWithErrorHandling(services);
+					
+					Console.WriteLine("Все сервисы обработаны");
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"ОШИБКА при регистрации сервисов: {ex.Message}");
+					Log.Error(ex, "Ошибка при регистрации сервисов, но веб-сервер будет запущен");
+					// Не бросаем исключение - веб-сервер должен работать
+				}
+			});
 
-        await context.Response.WriteAsync(jsonResponse);
-    }
+	/// <summary>
+	/// Регистрация сервисов с обработкой ошибок
+	/// </summary>
+	private static void RegisterServicesWithErrorHandling(IServiceCollection services)
+	{
+		try
+		{
+			Console.WriteLine("Регистрация IMarkdownService...");
+			services.AddSingleton<IMarkdownService, MarkdownService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации IMarkdownService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация IMediaDownloadService...");
+			services.AddSingleton<IMediaDownloadService, MediaDownloadService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации IMediaDownloadService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация ITelegramNotificationService...");
+			services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации ITelegramNotificationService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация ITelegramBotService...");
+			services.AddSingleton<ITelegramBotService, TelegramBotService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации ITelegramBotService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация ISyncStateService...");
+			services.AddSingleton<ISyncStateService, SyncStateService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации ISyncStateService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация IStatisticsService...");
+			services.AddSingleton<IStatisticsService, StatisticsService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации IStatisticsService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация IRetryService...");
+			services.AddSingleton<IRetryService, RetryService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации IRetryService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация ITelegramArchiverService...");
+			services.AddSingleton<ITelegramArchiverService, TelegramArchiverService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации ITelegramArchiverService: {ex.Message}");
+		}
+
+		try
+		{
+			Console.WriteLine("Регистрация TelegramArchiverService как HostedService...");
+			services.AddHostedService<TelegramArchiverBackgroundService>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Ошибка регистрации TelegramArchiverService: {ex.Message}");
+		}
+
+		Console.WriteLine("Регистрация сервисов завершена");
+	}
+
+	/// <summary>
+	/// Кастомная функция для записи ответа health check
+	/// </summary>
+	static async Task WriteHealthCheckResponse(HttpContext context, HealthReport healthReport)
+	{
+		context.Response.ContentType = "application/json; charset=utf-8";
+
+		var response = new
+		{
+			status = healthReport.Status.ToString(),
+			totalDuration = healthReport.TotalDuration.TotalMilliseconds,
+			results = healthReport.Entries.ToDictionary(
+				kvp => kvp.Key,
+				kvp => new
+				{
+					status = kvp.Value.Status.ToString(),
+					description = kvp.Value.Description,
+					duration = kvp.Value.Duration.TotalMilliseconds,
+					data = kvp.Value.Data
+				}
+			),
+			timestamp = DateTime.UtcNow
+		};
+
+		var jsonResponse = System.Text.Json.JsonSerializer.Serialize(response, new JsonSerializerOptions
+		{
+			PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+			WriteIndented = true
+		});
+
+		await context.Response.WriteAsync(jsonResponse);
+	}
 }

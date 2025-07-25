@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Telegram.HostedApp.Configuration;
 using Telegram.HostedApp.Models;
@@ -11,232 +12,219 @@ namespace Telegram.HostedApp.Services;
 /// </summary>
 public class SyncStateService : ISyncStateService
 {
-    private readonly ILogger<SyncStateService> _logger;
-    private readonly ArchiveConfig _config;
-    private readonly Dictionary<long, SyncState> _syncStates = new();
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly JsonSerializerOptions _jsonOptions;
+	private readonly ILogger<SyncStateService> _logger;
+	private readonly ArchiveConfig _config;
+	private readonly ConcurrentDictionary<long, SyncState> _syncStates = new();
+	private readonly SemaphoreSlim _fileSemaphore = new(1, 1);
+	private readonly JsonSerializerOptions _jsonOptions;
 
-    public SyncStateService(
-        ILogger<SyncStateService> logger,
-        IOptions<ArchiveConfig> config)
-    {
-        _logger = logger;
-        _config = config.Value;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-    }
+	public SyncStateService(
+		ILogger<SyncStateService> logger,
+		IOptions<ArchiveConfig> config)
+	{
+		_logger = logger;
+		_config = config.Value;
+		_jsonOptions = new JsonSerializerOptions
+		{
+			WriteIndented = true,
+			PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+		};
+	}
 
-    /// <summary>
-    /// Загрузить состояние синхронизации для чата
-    /// </summary>
-    public async Task<SyncState> LoadSyncStateAsync(long chatId)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            if (_syncStates.TryGetValue(chatId, out var existingState))
-            {
-                return existingState;
-            }
+	/// <summary>
+	/// Загрузить состояние синхронизации для чата
+	/// </summary>
+	public async Task<SyncState> LoadSyncStateAsync(long chatId)
+	{
+		// Быстрая проверка в памяти без блокировки
+		if (_syncStates.TryGetValue(chatId, out var existingState))
+		{
+			return existingState;
+		}
 
-            // Пытаемся загрузить из файла
-            var syncState = await LoadFromFileAsync(chatId);
-            _syncStates[chatId] = syncState;
-            
-            return syncState;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+		// Если в памяти нет, загружаем из файла с блокировкой
+		var syncState = await LoadFromFileAsync(chatId);
+		_syncStates.TryAdd(chatId, syncState);
 
-    /// <summary>
-    /// Сохранить состояние синхронизации
-    /// </summary>
-    public async Task SaveSyncStateAsync(SyncState syncState)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            _syncStates[syncState.ChatId] = syncState;
-            await SaveToFileAsync(syncState);
-            
-            _logger.LogDebug("Состояние синхронизации сохранено для чата {ChatId}", syncState.ChatId);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+		return syncState;
+	}
 
-    /// <summary>
-    /// Обновить последний обработанный ID сообщения
-    /// </summary>
-    public async Task UpdateLastProcessedMessageAsync(long chatId, int messageId)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            var syncState = await LoadSyncStateAsync(chatId);
-            
-            if (messageId > syncState.LastProcessedMessageId)
-            {
-                syncState.LastProcessedMessageId = messageId;
-                syncState.LastSyncDate = DateTime.UtcNow;
-                syncState.TotalProcessedMessages++;
-                
-                await SaveSyncStateAsync(syncState);
-            }
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+	/// <summary>
+	/// Сохранить состояние синхронизации
+	/// </summary>
+	public async Task SaveSyncStateAsync(SyncState syncState)
+	{
+		// Обновляем кэш в памяти без блокировки
+		_syncStates.AddOrUpdate(syncState.ChatId, syncState, (_, _) => syncState);
 
-    /// <summary>
-    /// Сбросить состояние синхронизации для полной пересинхронизации
-    /// </summary>
-    public async Task ResetSyncStateAsync(long chatId)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            var syncState = new SyncState
-            {
-                ChatId = chatId,
-                LastProcessedMessageId = 0,
-                LastSyncDate = DateTime.UtcNow,
-                TotalProcessedMessages = 0,
-                LastFullSyncDate = DateTime.UtcNow,
-                Status = SyncStatus.Idle,
-                ErrorMessage = null
-            };
+		// Сохраняем в файл с блокировкой
+		await SaveToFileAsync(syncState);
 
-            _syncStates[chatId] = syncState;
-            await SaveToFileAsync(syncState);
-            
-            _logger.LogInformation("Состояние синхронизации сброшено для чата {ChatId}", chatId);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+		_logger.LogDebug("Состояние синхронизации сохранено для чата {ChatId}", syncState.ChatId);
+	}
 
-    /// <summary>
-    /// Получить все состояния синхронизации
-    /// </summary>
-    public async Task<IEnumerable<SyncState>> GetAllSyncStatesAsync()
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            return _syncStates.Values.ToList();
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+	/// <summary>
+	/// Обновить последний обработанный ID сообщения
+	/// </summary>
+	public async Task UpdateLastProcessedMessageAsync(long chatId, int messageId)
+	{
+		var syncState = await LoadSyncStateAsync(chatId);
 
-    /// <summary>
-    /// Установить статус синхронизации
-    /// </summary>
-    public async Task SetSyncStatusAsync(long chatId, SyncStatus status, string? errorMessage = null)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            var syncState = await LoadSyncStateAsync(chatId);
-            syncState.Status = status;
-            syncState.ErrorMessage = errorMessage;
-            syncState.LastSyncDate = DateTime.UtcNow;
-            
-            await SaveSyncStateAsync(syncState);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+		if (messageId > syncState.LastProcessedMessageId)
+		{
+			// Создаем обновленную копию состояния
+			var updatedState = new SyncState
+			{
+				ChatId = syncState.ChatId,
+				LastProcessedMessageId = messageId,
+				LastSyncDate = DateTime.UtcNow,
+				TotalProcessedMessages = syncState.TotalProcessedMessages + 1,
+				LastFullSyncDate = syncState.LastFullSyncDate,
+				Status = syncState.Status,
+				ErrorMessage = syncState.ErrorMessage
+			};
 
-    private async Task<SyncState> LoadFromFileAsync(long chatId)
-    {
-        try
-        {
-            var filePath = GetSyncStateFilePath(chatId);
-            
-            if (!File.Exists(filePath))
-            {
-                _logger.LogDebug("Файл состояния синхронизации не найден для чата {ChatId}, создаем новое состояние", chatId);
-                return CreateNewSyncState(chatId);
-            }
+			await SaveSyncStateAsync(updatedState);
+		}
+	}
 
-            var json = await File.ReadAllTextAsync(filePath);
-            var syncState = JsonSerializer.Deserialize<SyncState>(json, _jsonOptions);
-            
-            if (syncState == null)
-            {
-                _logger.LogWarning("Не удалось десериализовать состояние синхронизации для чата {ChatId}", chatId);
-                return CreateNewSyncState(chatId);
-            }
+	/// <summary>
+	/// Сбросить состояние синхронизации для полной пересинхронизации
+	/// </summary>
+	public async Task ResetSyncStateAsync(long chatId)
+	{
+		var syncState = new SyncState
+		{
+			ChatId = chatId,
+			LastProcessedMessageId = 0,
+			LastSyncDate = DateTime.UtcNow,
+			TotalProcessedMessages = 0,
+			LastFullSyncDate = DateTime.UtcNow,
+			Status = SyncStatus.Idle,
+			ErrorMessage = null
+		};
 
-            _logger.LogDebug("Состояние синхронизации загружено для чата {ChatId}: последнее сообщение {MessageId}", 
-                chatId, syncState.LastProcessedMessageId);
-            
-            return syncState;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка при загрузке состояния синхронизации для чата {ChatId}", chatId);
-            return CreateNewSyncState(chatId);
-        }
-    }
+		// Обновляем кэш в памяти без блокировки
+		_syncStates.AddOrUpdate(chatId, syncState, (_, _) => syncState);
 
-    private async Task SaveToFileAsync(SyncState syncState)
-    {
-        try
-        {
-            var filePath = GetSyncStateFilePath(syncState.ChatId);
-            var directory = Path.GetDirectoryName(filePath);
-            
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+		// Сохраняем в файл с блокировкой
+		await SaveToFileAsync(syncState);
 
-            var json = JsonSerializer.Serialize(syncState, _jsonOptions);
-            await File.WriteAllTextAsync(filePath, json);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка при сохранении состояния синхронизации для чата {ChatId}", syncState.ChatId);
-        }
-    }
+		_logger.LogInformation("Состояние синхронизации сброшено для чата {ChatId}", chatId);
+	}
 
-    private string GetSyncStateFilePath(long chatId)
-    {
-        var fileName = $"sync_state_{chatId}.json";
-        return Path.Combine(Path.GetDirectoryName(_config.SyncStatePath) ?? ".", fileName);
-    }
+	/// <summary>
+	/// Получить все состояния синхронизации
+	/// </summary>
+	public Task<IEnumerable<SyncState>> GetAllSyncStatesAsync()
+	{
+		// Возвращаем копию значений из кэша без блокировки
+		return Task.FromResult<IEnumerable<SyncState>>(_syncStates.Values.ToList());
+	}
 
-    private static SyncState CreateNewSyncState(long chatId)
-    {
-        return new SyncState
-        {
-            ChatId = chatId,
-            LastProcessedMessageId = 0,
-            LastSyncDate = DateTime.UtcNow,
-            TotalProcessedMessages = 0,
-            LastFullSyncDate = null,
-            Status = SyncStatus.Idle,
-            ErrorMessage = null
-        };
-    }
+	/// <summary>
+	/// Установить статус синхронизации
+	/// </summary>
+	public async Task SetSyncStatusAsync(long chatId, SyncStatus status, string? errorMessage = null)
+	{
+		var syncState = await LoadSyncStateAsync(chatId);
+
+		// Создаем обновленную копию состояния
+		var updatedState = new SyncState
+		{
+			ChatId = syncState.ChatId,
+			LastProcessedMessageId = syncState.LastProcessedMessageId,
+			LastSyncDate = DateTime.UtcNow,
+			TotalProcessedMessages = syncState.TotalProcessedMessages,
+			LastFullSyncDate = syncState.LastFullSyncDate,
+			Status = status,
+			ErrorMessage = errorMessage
+		};
+
+		await SaveSyncStateAsync(updatedState);
+	}
+
+	private async Task<SyncState> LoadFromFileAsync(long chatId)
+	{
+		await _fileSemaphore.WaitAsync();
+		try
+		{
+			var filePath = GetSyncStateFilePath(chatId);
+
+			if (!File.Exists(filePath))
+			{
+				_logger.LogDebug("Файл состояния синхронизации не найден для чата {ChatId}, создаем новое состояние", chatId);
+				return CreateNewSyncState(chatId);
+			}
+
+			var json = await File.ReadAllTextAsync(filePath);
+			var syncState = JsonSerializer.Deserialize<SyncState>(json, _jsonOptions);
+
+			if (syncState == null)
+			{
+				_logger.LogWarning("Не удалось десериализовать состояние синхронизации для чата {ChatId}", chatId);
+				return CreateNewSyncState(chatId);
+			}
+
+			_logger.LogDebug("Состояние синхронизации загружено для чата {ChatId}: последнее сообщение {MessageId}",
+				chatId, syncState.LastProcessedMessageId);
+
+			return syncState;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Ошибка при загрузке состояния синхронизации для чата {ChatId}", chatId);
+			return CreateNewSyncState(chatId);
+		}
+		finally
+		{
+			_fileSemaphore.Release();
+		}
+	}
+
+	private async Task SaveToFileAsync(SyncState syncState)
+	{
+		await _fileSemaphore.WaitAsync();
+		try
+		{
+			var filePath = GetSyncStateFilePath(syncState.ChatId);
+			var directory = Path.GetDirectoryName(filePath);
+
+			if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+			{
+				Directory.CreateDirectory(directory);
+			}
+
+			var json = JsonSerializer.Serialize(syncState, _jsonOptions);
+			await File.WriteAllTextAsync(filePath, json);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Ошибка при сохранении состояния синхронизации для чата {ChatId}", syncState.ChatId);
+		}
+		finally
+		{
+			_fileSemaphore.Release();
+		}
+	}
+
+	private string GetSyncStateFilePath(long chatId)
+	{
+		var fileName = $"sync_state_{chatId}.json";
+		return Path.Combine(Path.GetDirectoryName(_config.SyncStatePath) ?? ".", fileName);
+	}
+
+	private static SyncState CreateNewSyncState(long chatId)
+	{
+		return new SyncState
+		{
+			ChatId = chatId,
+			LastProcessedMessageId = 0,
+			LastSyncDate = DateTime.UtcNow,
+			TotalProcessedMessages = 0,
+			LastFullSyncDate = null,
+			Status = SyncStatus.Idle,
+			ErrorMessage = null
+		};
+	}
 }
